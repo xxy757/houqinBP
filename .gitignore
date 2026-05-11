@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# SQLite
+*.db-shm
+*.db-wal
+
+# Node
+node_modules/
