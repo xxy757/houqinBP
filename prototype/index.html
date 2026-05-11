@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>后勤部 · 四项规划统筹管理系统</title>
+<style>
+:root {
+  --pri: #1a73e8; --pri-bg: #e8f0fe; --pri-dk: #1557b0;
+  --pro: #0D9488; --pro-bg: #F0FDFA;
+  --it: #7C3AED;  --it-bg: #F5F3FF;
+  --hr: #D97706;  --hr-bg: #FFFBEB;
+  --fin: #DC2626; --fin-bg: #FEF2F2;
+  --g50:#F9FAFB; --g100:#F3F4F6; --g200:#E5E7EB; --g300:#D1D5DB;
+  --g500:#6B7280; --g600:#4B5563; --g700:#374151; --g800:#1F2937; --g900:#111827;
+  --R:10px; --Rs:6px; --sh:0 1px 3px rgba(0,0,0,.08); --sh-md:0 4px 14px rgba(0,0,0,.1);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--g50);color:var(--g800);line-height:1.6;min-height:100vh;}
+
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:linear-gradient(180deg,var(--g900),var(--g800));color:#fff;z-index:100;display:flex;flex-direction:column;}
+.sidebar .logo{padding:20px;border-bottom:1px solid rgba(255,255,255,.1);}
+.sidebar .logo h1{font-size:14px;font-weight:700;line-height:1.4;}
+.sidebar .logo span{font-size:11px;opacity:.6;}
+.sidebar nav{flex:1;padding:12px 0;}
+.sidebar nav a{display:flex;align-items:center;gap:10px;padding:11px 20px;color:rgba(255,255,255,.6);text-decoration:none;font-size:13px;transition:.2s;border-left:3px solid transparent;}
+.sidebar nav a:hover,.sidebar nav a.on{color:#fff;background:rgba(255,255,255,.08);border-left-color:var(--pri);}
+.sidebar nav a .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sidebar .ft{padding:16px 20px;font-size:10px;color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.1);}
+
+.main{margin-left:220px;}
+.topbar{background:#fff;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--g200);position:sticky;top:0;z-index:50;}
+.topbar h2{font-size:16px;font-weight:700;}
+.topbar .actions{display:flex;gap:8px;align-items:center;}
+.topbar .date{font-size:12px;color:var(--g500);}
+
+.content{padding:24px;}
+.pg{display:none;animation:fu .3s ease;}
+.pg.on{display:block;}
+@keyframes fu{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+.kpi-card{background:#fff;border-radius:var(--R);padding:20px;box-shadow:var(--sh);border:1px solid var(--g200);}
+.kpi-card .kl{font-size:12px;color:var(--g500);margin-bottom:6px;}
+.kpi-card .kv{font-size:26px;font-weight:800;}
+.kpi-card .ks{font-size:11px;color:var(--g500);margin-top:4px;}
+.kpi-card.c1{border-left:3px solid var(--pro);}
+.kpi-card.c2{border-left:3px solid var(--it);}
+.kpi-card.c3{border-left:3px solid var(--hr);}
+.kpi-card.c4{border-left:3px solid var(--fin);}
+
+.section{background:#fff;border-radius:var(--R);box-shadow:var(--sh);border:1px solid var(--g200);margin-bottom:20px;}
+.section .sh{padding:16px 20px;border-bottom:1px solid var(--g200);display:flex;align-items:center;gap:10px;}
+.section .sh h3{font-size:14px;font-weight:700;}
+.section .sh .badge{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--g100);color:var(--g600);}
+.section .sb{padding:0;overflow-x:auto;}
+
+table{width:100%;border-collapse:collapse;font-size:12px;}
+table thead th{padding:10px 12px;text-align:left;font-weight:600;font-size:11px;color:var(--g500);background:var(--g50);border-bottom:2px solid var(--g200);white-space:nowrap;}
+table tbody td{padding:10px 12px;border-bottom:1px solid var(--g100);vertical-align:middle;}
+table tbody tr:hover{background:var(--g50);}
+table tbody tr:last-child td{border-bottom:none;}
+.t-c{text-align:center;}
+
+.stag{display:inline-block;font-size:10px;font-weight:600;padding:3px 10px;border-radius:10px;}
+.stag-done{background:#DCFCE7;color:#16A34A;}
+.stag-doing{background:#FEF3C7;color:#D97706;}
+.stag-plan{background:var(--g100);color:var(--g500);}
+.stag-new{background:#E0E7FF;color:#4F46E5;}
+
+.pbar{width:100%;max-width:100px;height:6px;background:var(--g200);border-radius:3px;overflow:hidden;margin:0 auto;}
+.pbar .pf{height:100%;border-radius:3px;transition:width .4s;background:var(--pro);}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+
+.stats-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.stats-mini .sm{padding:14px;border-radius:var(--Rs);text-align:center;}
+.stats-mini .sm .smv{font-size:22px;font-weight:800;}
+.stats-mini .sm .sml{font-size:11px;color:var(--g500);}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--g200);margin-top:16px;}
+.tabs button{padding:10px 20px;border:none;background:none;font-size:13px;color:var(--g500);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;}
+.tabs button.on{color:var(--pri);border-bottom-color:var(--pri);font-weight:600;}
+
+.inner-pg{display:none;}.inner-pg.on{display:block;}
+
+.phase-dots{display:flex;gap:3px;flex-wrap:wrap;}
+.phase-dots span{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;}
+.phase-dots .done{background:var(--pro);}
+.phase-dots .doing{background:var(--hr);}
+.phase-dots .todo{background:var(--g300);color:var(--g500);}
+
+.btn{padding:7px 16px;border-radius:var(--Rs);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.2s;}
+.btn-o{background:#fff;color:var(--g600);border:1px solid var(--g200);}.btn-o:hover{background:var(--g100);}
+.btn-p{background:var(--pri);color:#fff;}.btn-p:hover{background:var(--pri-dk);}
+
+.alert-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.alert-item{padding:10px 16px;border-radius:var(--Rs);font-size:12px;display:flex;align-items:center;gap:6px;}
+.alert-yellow{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;}
+
+.dept-tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:3px;background:var(--g100);color:var(--g600);}
+
+.dot-c1{background:var(--pro);}.dot-c2{background:var(--it);}.dot-c3{background:var(--hr);}.dot-c4{background:var(--fin);}
+
+.tl-block{padding:16px 0;}
+.tl-phase{margin-bottom:14px;padding:14px;background:var(--g50);border-radius:var(--Rs);border:1px solid var(--g200);}
+.tl-phase .tp-h{font-size:13px;font-weight:700;color:var(--pri-dk);margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.tl-phase .tp-date{font-size:11px;color:var(--g500);font-weight:400;}
+.tl-phase .tp-actions{font-size:11px;color:var(--g600);line-height:1.8;}
+
+.proj-row{cursor:pointer;transition:.2s;}
+.proj-row:hover{background:var(--pro-bg)!important;}
+
+#projDetail{display:none;margin-bottom:20px;}
+#projDetail .section{margin-bottom:0;}
+
+@media(max-width:1200px){.grid2,.grid3{grid-template-columns:1fr;}.kpi-row{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:768px){.sidebar{width:60px;}.sidebar .logo h1,.sidebar nav a span,.sidebar .ft{display:none;}.sidebar nav a{justify-content:center;padding:14px;}.main{margin-left:60px;}.kpi-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="logo"><h1>🔧 后勤部</h1><span>四项规划统筹管理系统</span></div>
+  <nav>
+    <a href="#" class="on" data-pg="dash"><span class="dot dot-c1"></span>📊 驾驶舱总览</a>
+    <a href="#" data-pg="pro"><span class="dot dot-c1"></span>📋 专业项目</a>
+    <a href="#" data-pg="it"><span class="dot dot-c2"></span>💻 信息化方案</a>
+    <a href="#" data-pg="hr"><span class="dot dot-c3"></span>👥 人力资源</a>
+    <a href="#" data-pg="fin"><span class="dot dot-c4"></span>💰 财务管控</a>
+    <a href="#" data-pg="link"><span>🔗</span>联动配置</a>
+  </nav>
+  <div class="ft">宝士制冷 · 后勤部 · v1.0</div>
+</div>
+
+<div class="main">
+<div class="topbar">
+  <h2 id="pageTitle">📊 驾驶舱总览</h2>
+  <div class="actions"><span class="date" id="nowDate"></span><button class="btn btn-o">📥 导出报表</button></div>
+</div>
+<div class="content">
+
+<!-- ===== 驾驶舱总览 ===== -->
+<div class="pg on" id="pg-dash">
+  <div class="kpi-row">
+    <div class="kpi-card c1"><div class="kl">📋 专业项目总数</div><div class="kv" style="color:var(--pro)">17</div><div class="ks">5个部门 · 时间跨度5月-10月</div></div>
+    <div class="kpi-card c2"><div class="kl">💻 信息化子项目</div><div class="kv" style="color:var(--it)">9</div><div class="ks">3项已完成 · 6项推进/规划中</div></div>
+    <div class="kpi-card c3"><div class="kl">👥 在编人数</div><div class="kv" style="color:var(--hr)">53<span style="font-size:14px;color:var(--g500)">→48</span></div><div class="ks">优化11人 · 新增14人 · 调岗7人</div></div>
+    <div class="kpi-card c4"><div class="kl">💰 年度预算</div><div class="kv" style="color:var(--fin)">2,139<span style="font-size:14px;color:var(--g500)">万</span></div><div class="ks">Q1实际540万 · 执行率25.25%</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="section">
+      <div class="sh"><h3>📋 专业项目进度 (17项)</h3></div>
+      <div class="sb"><table><thead><tr><th>序号</th><th>项目名称</th><th>部门</th><th>周期</th><th>进度</th></tr></thead><tbody id="dashProj"></tbody></table></div>
+    </div>
+    <div class="section">
+      <div class="sh"><h3>💻 信息化项目状态 (9项)</h3></div>
+      <div class="sb"><table><thead><tr><th>序号</th><th>子项目</th><th>一级项目</th><th>周期</th><th>状态</th></tr></thead><tbody id="dashIt"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="section">
+      <div class="sh"><h3>👥 部门人力分布</h3></div>
+      <div class="sb"><table><thead><tr><th>部门</th><th class="t-c">在编</th><th class="t-c">占比</th></tr></thead><tbody id="dashDept"></tbody></table></div>
+    </div>
+    <div class="section">
+      <div class="sh"><h3>💰 费用结构总览</h3></div>
+      <div class="sb"><table><thead><tr><th>费用类别</th><th class="t-c">年度预算(万)</th><th class="t-c">占比</th><th class="t-c">同比</th></tr></thead><tbody id="dashFin"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 专业项目 ===== -->
+<div class="pg" id="pg-pro">
+  <div class="stats-mini">
+    <div class="sm" style="background:var(--pro-bg)"><div class="smv" style="color:var(--pro)">17</div><div class="sml">项目总数</div></div>
+    <div class="sm" style="background:#DCFCE7"><div class="smv" style="color:#16A34A">2</div><div class="sml">已验收</div></div>
+    <div class="sm" style="background:var(--hr-bg)"><div class="smv" style="color:var(--hr)">9</div><div class="sml">推进中</div></div>
+    <div class="sm" style="background:var(--g100)"><div class="smv" style="color:var(--g500)">6</div><div class="sml">待启动</div></div>
+  </div>
+
+  <div class="section">
+    <div class="sh"><h3>📋 专业项目清单 (来源: 后勤部-专业.xlsx)</h3><span class="badge">17项 · 1 sheet</span></div>
+    <div class="sb"><table><thead><tr><th style="width:40px">序号</th><th>子项目</th><th>所属部门</th><th style="min-width:200px">核心目标</th><th style="width:80px">责任人</th><th style="width:80px">周期</th><th style="width:80px">开始</th><th style="width:80px">结束</th><th style="width:100px">阶段</th></tr></thead><tbody id="proTbody"></tbody></table></div>
+  </div>
+
+  <div id="projDetail">
+    <div class="section">
+      <div class="sh"><h3 id="projDetailTitle">项目详情</h3><button class="btn btn-o" onclick="closeProjDetail()" style="margin-left:auto">✕ 关闭</button></div>
+      <div class="sb" style="padding:20px" id="projDetailContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 信息化方案 ===== -->
+<div class="pg" id="pg-it">
+  <div class="stats-mini">
+    <div class="sm" style="background:var(--it-bg)"><div class="smv" style="color:var(--it)">9</div><div class="sml">子项目总数</div></div>
+    <div class="sm" style="background:#DCFCE7"><div class="smv" style="color:#16A34A">3</div><div class="sml">已完成</div></div>
+    <div class="sm" style="background:var(--hr-bg)"><div class="smv" style="color:var(--hr)">4</div><div class="sml">推进中</div></div>
+    <div class="sm" style="background:var(--g100)"><div class="smv" style="color:var(--g500)">2</div><div class="sml">待启动</div></div>
+  </div>
+
+  <div class="section">
+    <div class="sh"><h3>💻 信息化细化方案 (来源: 后勤部-信息化.xlsx)</h3><span class="badge">9项 · 1 sheet</span></div>
+    <div class="sb"><table><thead><tr><th style="width:40px">序号</th><th>一级项目</th><th>子项目</th><th style="min-width:200px">核心目标</th><th style="width:90px">周期</th><th style="width:70px">状态</th><th style="min-width:180px">实施难点</th><th style="width:180px">解决的问题</th></tr></thead><tbody id="itTbody"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ===== 人力资源 ===== -->
+<div class="pg" id="pg-hr">
+  <div class="tabs" id="hrTabs">
+    <button class="on" data-hr="overview">团队现状</button>
+    <button data-hr="plan">年度KPI规划</button>
+    <button data-hr="change">人员调整轨迹</button>
+  </div>
+
+  <div class="inner-pg on" id="inner-hr-overview">
+    <div class="stats-mini" style="margin-top:16px">
+      <div class="sm" style="background:var(--pro-bg)"><div class="smv" style="color:var(--pro)">53<span style="font-size:13px;font-weight:400;color:var(--g500)">人</span></div><div class="sml">在编人数</div></div>
+      <div class="sm" style="background:var(--it-bg)"><div class="smv" style="color:var(--it)">31.98<span style="font-size:13px;font-weight:400;color:var(--g500)">岁</span></div><div class="sml">平均年龄</div></div>
+      <div class="sm" style="background:var(--hr-bg)"><div class="smv" style="color:var(--hr)">2.23<span style="font-size:13px;font-weight:400;color:var(--g500)">年</span></div><div class="sml">平均司龄</div></div>
+      <div class="sm" style="background:var(--fin-bg)"><div class="smv" style="color:var(--fin)">17<span style="font-size:13px;font-weight:400;color:var(--g500)">%</span></div><div class="sml">本科以上</div></div>
+    </div>
+    <div class="grid3">
+      <div class="section"><div class="sh"><h3>🎓 学历分布</h3></div><div class="sb"><table><thead><tr><th>学历</th><th class="t-c">人数</th><th class="t-c">占比</th></tr></thead><tbody id="hrEdu"></tbody></table></div></div>
+      <div class="section"><div class="sh"><h3>📅 年龄分布</h3></div><div class="sb"><table><thead><tr><th>年龄段</th><th class="t-c">人数</th><th class="t-c">占比</th></tr></thead><tbody id="hrAge"></tbody></table></div></div>
+      <div class="section"><div class="sh"><h3>👥 男女比例</h3></div><div class="sb"><table><thead><tr><th>性别</th><th class="t-c">人数</th><th class="t-c">占比</th></tr></thead><tbody id="hrGender"></tbody></table></div></div>
+    </div>
+    <div class="section">
+      <div class="sh"><h3>📋 人员名册 (来源: 后勤部-人力.xlsx)</h3><span class="badge">53人</span></div>
+      <div class="sb"><table><thead><tr><th>姓名</th><th>职务</th><th>部门</th><th>学历</th><th class="t-c">年龄</th><th class="t-c">司龄(年)</th><th>专业匹配</th></tr></thead><tbody id="hrRoster"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="inner-pg" id="inner-hr-plan">
+    <div class="section" style="margin-top:16px">
+      <div class="sh"><h3>📈 2026年人力规划KPI · 逐月 (来源: 后勤部-人力.xlsx)</h3></div>
+      <div class="sb" style="overflow-x:auto"><table><thead><tr><th>指标</th><th>目标</th><th>1月</th><th>2月</th><th>3月</th><th>4月</th><th>5月</th><th>6月</th><th>7月</th><th>8月</th><th>9月</th><th>10月</th><th>11月</th><th>12月</th></tr></thead><tbody id="hrPlan"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="inner-pg" id="inner-hr-change">
+    <div class="section" style="margin-top:16px">
+      <div class="sh"><h3>🔄 人员调整月度轨迹 (来源: 后勤部-人力.xlsx)</h3><span class="badge">人员调整计划</span></div>
+      <div class="sb" style="overflow-x:auto"><table><thead><tr><th>姓名</th><th>部门</th><th>职务</th><th>4月</th><th>5月</th><th>6月</th><th>7月</th><th>8月</th></tr></thead><tbody id="hrChange"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 财务管控 ===== -->
+<div class="pg" id="pg-fin">
+  <div class="tabs" id="finTabs">
+    <button class="on" data-fin="budget">26-27年预算</button>
+    <button data-fin="timeline">执行时间线</button>
+    <button data-fin="reduction">降费方案明细</button>
+  </div>
+
+  <div class="inner-pg on" id="inner-fin-budget">
+    <div class="stats-mini" style="margin-top:16px">
+      <div class="sm" style="background:var(--fin-bg)"><div class="smv" style="color:var(--fin)">2,139<span style="font-size:13px;font-weight:400;color:var(--g500)">万</span></div><div class="sml">全年预算总额</div></div>
+      <div class="sm" style="background:var(--hr-bg)"><div class="smv" style="color:var(--hr)">540<span style="font-size:13px;font-weight:400;color:var(--g500)">万</span></div><div class="sml">Q1实际支出</div></div>
+      <div class="sm" style="background:var(--it-bg)"><div class="smv" style="color:var(--it)">25.25<span style="font-size:13px;font-weight:400;color:var(--g500)">%</span></div><div class="sml">预算已执行</div></div>
+      <div class="sm" style="background:var(--pro-bg)"><div class="smv" style="color:var(--pro)">1,599<span style="font-size:13px;font-weight:400;color:var(--g500)">万</span></div><div class="sml">剩余可用</div></div>
+    </div>
+
+    <div class="section">
+      <div class="sh"><h3>🏗️ 费用结构分析</h3></div>
+      <div class="sb"><table><thead><tr><th>费用类别</th><th>费用项目</th><th class="t-c">年度预算(万)</th><th class="t-c">占比</th><th class="t-c">同比2025</th><th>管控策略</th></tr></thead><tbody id="finStruct"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="inner-pg" id="inner-fin-timeline">
+    <div class="section" style="margin-top:16px">
+      <div class="sh"><h3>📅 执行时间线 2026年5月 - 2027年3月</h3><span class="badge">5阶段</span></div>
+      <div class="sb" style="padding:20px" id="finTimeline"></div>
+    </div>
+  </div>
+
+  <div class="inner-pg" id="inner-fin-reduction">
+    <div class="section" style="margin-top:16px">
+      <div class="sh"><h3>📉 降费方案明细</h3><span class="badge">6大类</span></div>
+      <div class="sb"><table><thead><tr><th>费用科目</th><th class="t-c">2025实际(万)</th><th class="t-c">本年预算(万)</th><th class="t-c">升降幅</th><th>详细项目</th><th class="t-c">优先级</th><th style="min-width:220px">降费方案摘要</th></tr></thead><tbody id="finReduction"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 联动配置 ===== -->
+<div class="pg" id="pg-link">
+  <div class="section">
+    <div class="sh"><h3>🔗 四维联动配置</h3><span class="badge">当前状态：四个维度独立，需手动建立映射</span></div>
+    <div class="sb" style="padding:20px">
+      <div class="alert-row">
+        <div class="alert-item alert-yellow">⚠️ 四个Excel文件各自独立存在。专业→信息化→人力→财务的项目级联动映射关系需要在此手动建立</div>
+      </div>
+      <p style="font-size:12px;color:var(--g500);margin-bottom:16px;line-height:2">
+        <strong>现有硬链接(Excel中天然存在)：</strong><br>
+        ① 人力计划(优化11人) → 财务工资预算(449万→362万) — <span style="color:var(--pro)">唯一可自动计算链路</span><br>
+        ② 人员调整计划(逐月逐人) → 财务执行时间线(人员编制与排班方案)<br>
+        <br>
+        <strong>缺失的映射(需在此配置)：</strong><br>
+        ③ 专业项目(17个) → 信息化子项目(9个) — <span style="color:var(--hr)">无直接关联字段</span><br>
+        ④ 信息化子项目 → 人力增减 — <span style="color:var(--hr)">无数据</span><br>
+        ⑤ 专业/信息化 → 单项投入产出 — <span style="color:var(--hr)">无数据(财务是科目级,非项目级)</span><br>
+        <br>
+        本模块将提供配置界面，由业务人员为每个专业项目手动关联：信息化方案、预期人力变化、预期投入。
+      </p>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="sh"><h3>📊 联动指标配置</h3></div>
+    <div class="sb" style="padding:20px">
+      <table>
+        <thead><tr><th>专业项目</th><th>关联信息化方案</th><th>预期人力变化</th><th>预期投入(万)</th><th>负责人</th></tr></thead>
+        <tbody id="linkConfig"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div></div>
+
+<script>
+document.getElementById('nowDate').textContent = new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric'});
+
+var pageTitles = { dash:'📊 驾驶舱总览', pro:'📋 专业项目管理', it:'💻 信息化方案管理', hr:'👥 人力资源管理', fin:'💰 财务管控', link:'🔗 四维联动配置' };
+
+// ---- 专业项目数据 ----
+var projData = [
+  {id:1,name:'总务库房优化',dept:'综合物料库',goal:'实现库房管理智能化，减少人工操作，提高数据准确性',person:'冯秀萍',period:'约2个月',start:'5.5',end:'6.30',phases:6,pStat:['done','done','doing','todo','todo','todo']},
+  {id:2,name:'会议室申请优化',dept:'行政事务处',goal:'简化会议室申请流程，实现自动化管控，节约能源消耗',person:'梁美珍',period:'约1个月',start:'5.5',end:'5.30',phases:6,pStat:['done','done','done','done','done','done']},
+  {id:3,name:'车辆管理优化',dept:'行政事务处',goal:'提升用车使用效率、降低运营成本',person:'梁美珍',period:'约1个月',start:'5.10',end:'6.12',phases:3,pStat:['done','done','doing']},
+  {id:4,name:'客户来访接待优化',dept:'行政事务处',goal:'提升企业对外形象、增强客户合作信任',person:'梁美珍',period:'约1个月',start:'5.10',end:'6.7',phases:5,pStat:['done','doing','todo','todo','todo']},
+  {id:5,name:'公司快递收发优化',dept:'行政事务处',goal:'提升公司内部物流运作的效率与规范性',person:'梁美珍',period:'约1个月',start:'5.10',end:'6.7',phases:5,pStat:['done','doing','todo','todo','todo']},
+  {id:6,name:'生产垃圾变卖优化',dept:'行政事务处',goal:'减少人工成本，提高变卖过程透明度和监管效率',person:'李彐苗',period:'约1个月',start:'5.5',end:'5.30',phases:6,pStat:['done','done','done','done','doing','todo']},
+  {id:7,name:'宿舍申请流程优化',dept:'专项监察处',goal:'简化宿舍申请流程，实现自动化管理，提升员工满意度',person:'刁德华',period:'约2个月',start:'5.5',end:'6.25',phases:4,pStat:['done','doing','todo','todo']},
+  {id:8,name:'食堂管理流程优化',dept:'专项监察处',goal:'提升员工用餐体验、降低运营成本',person:'刁德华',period:'约1个月',start:'5.10',end:'6.7',phases:5,pStat:['done','doing','todo','todo','todo']},
+  {id:9,name:'厂区空间管控优化',dept:'专项监察处',goal:'提升厂区动线流转效率、优化空间利用率',person:'刁德华',period:'约1个月',start:'5.15',end:'6.12',phases:3,pStat:['plan','plan','plan']},
+  {id:10,name:'安全环保检查优化',dept:'专项监察处',goal:'规范安全环保检查流程、降低事故率',person:'刁德华',period:'约1个月',start:'5.15',end:'6.12',phases:4,pStat:['plan','plan','plan','plan']},
+  {id:11,name:'门禁系统升级改造',dept:'安保消防处',goal:'升级门禁系统，提升人员出入管理效率',person:'田宗贵',period:'约2个月',start:'6.1',end:'7.31',phases:4,pStat:['plan','plan','plan','plan']},
+  {id:12,name:'消防设施完善',dept:'安保消防处',goal:'完善消防设施，确保厂区消防安全',person:'田宗贵',period:'约3个月',start:'7.1',end:'9.30',phases:5,pStat:['plan','plan','plan','plan','plan']},
+  {id:13,name:'绿化养护优化',dept:'后勤保障处',goal:'优化绿化养护流程，提升园区环境质量',person:'潘明',period:'约2个月',start:'5.15',end:'7.15',phases:4,pStat:['done','doing','todo','todo']},
+  {id:14,name:'设备维护保养优化',dept:'后勤保障处',goal:'建立设备维护保养标准流程，延长设备使用寿命',person:'潘明',period:'约2个月',start:'6.1',end:'7.31',phases:4,pStat:['plan','plan','plan','plan']},
+  {id:15,name:'办公区域改造',dept:'后勤保障处',goal:'优化办公区域布局，提升办公效率',person:'潘明',period:'约3个月',start:'8.1',end:'10.31',phases:5,pStat:['plan','plan','plan','plan','plan']},
+  {id:16,name:'园区道路修缮',dept:'后勤保障处',goal:'修缮园区道路，保障通行安全',person:'潘明',period:'约1个月',start:'9.1',end:'9.30',phases:3,pStat:['plan','plan','plan']},
+  {id:17,name:'停车场管理优化',dept:'行政事务处',goal:'优化停车场管理，提高车位利用率',person:'梁美珍',period:'约1个月',start:'10.1',end:'10.31',phases:3,pStat:['plan','plan','plan']}
+];
+
+// ---- 信息化项目数据 ----
+var itData = [
+  {id:1,main:'后勤数字化平台建设',sub:'后勤数字化平台-一期建设',goal:'建立统一的后勤数字化管理平台',period:'5月-7月',status:'doing',issue:'系统集成复杂度高',solve:'建立标准化接口规范'},
+  {id:2,main:'后勤数字化平台建设',sub:'后勤数字化平台-二期建设',goal:'扩展平台功能模块',period:'8月-10月',status:'plan',issue:'需求变更频繁',solve:'建立需求变更管理机制'},
+  {id:3,main:'智能安防系统',sub:'门禁系统智能化升级',goal:'实现人员出入智能化管理',period:'6月-8月',status:'plan',issue:'设备兼容性问题',solve:'提前进行设备兼容性测试'},
+  {id:4,main:'智能安防系统',sub:'视频监控系统完善',goal:'完善厂区视频监控覆盖',period:'5月-6月',status:'doing',issue:'网络带宽不足',solve:'升级网络基础设施'},
+  {id:5,main:'智能安防系统',sub:'消防报警系统升级',goal:'实现消防报警智能化联动',period:'7月-9月',status:'plan',issue:'系统联动复杂度高',solve:'分阶段实施联动测试'},
+  {id:6,main:'办公自动化系统',sub:'会议室预约系统',goal:'实现会议室智能预约管理',period:'5月',status:'done',issue:'无',solve:'已完成'},
+  {id:7,main:'办公自动化系统',sub:'车辆调度系统',goal:'实现车辆智能调度管理',period:'5月-6月',status:'doing',issue:'GPS定位精度',solve:'优化定位算法'},
+  {id:8,main:'办公自动化系统',sub:'快递管理系统',goal:'实现快递收发信息化管理',period:'5月-6月',status:'doing',issue:'扫码设备兼容性',solve:'统一设备标准'},
+  {id:9,main:'能耗管理系统',sub:'能耗监测平台建设',goal:'实现能耗实时监测与分析',period:'6月-8月',status:'plan',issue:'数据采集难度大',solve:'部署智能采集终端'}
+];
+
+// ---- 人力数据 ----
+var hrRoster = [
+  {name:'冯秀萍',post:'主管',dept:'综合物料库',edu:'大专',age:35,service:5,match:'高'},
+  {name:'梁美珍',post:'主管',dept:'行政事务处',edu:'本科',age:32,service:4,match:'高'},
+  {name:'李彐苗',post:'专员',dept:'行政事务处',edu:'大专',age:28,service:3,match:'中'},
+  {name:'刁德华',post:'主管',dept:'专项监察处',edu:'本科',age:38,service:6,match:'高'},
+  {name:'田宗贵',post:'主管',dept:'安保消防处',edu:'大专',age:42,service:8,match:'中'},
+  {name:'潘明',post:'主管',dept:'后勤保障处',edu:'本科',age:34,service:5,match:'高'},
+  {name:'张艳',post:'专员',dept:'综合物料库',edu:'中专',age:26,service:2,match:'中'},
+  {name:'王强',post:'专员',dept:'行政事务处',edu:'大专',age:30,service:3,match:'中'},
+  {name:'刘芳',post:'专员',dept:'专项监察处',edu:'本科',age:29,service:2,match:'高'},
+  {name:'陈明',post:'专员',dept:'安保消防处',edu:'高中',age:31,service:4,match:'中'}
+];
+
+var hrDeptDist = [
+  {dept:'综合物料库',count:12,rate:'22.6%'},
+  {dept:'行政事务处',count:15,rate:'28.3%'},
+  {dept:'专项监察处',count:10,rate:'18.9%'},
+  {dept:'安保消防处',count:8,rate:'15.1%'},
+  {dept:'后勤保障处',count:8,rate:'15.1%'}
+];
+
+var hrEduDist = [
+  {edu:'本科',count:9,rate:'17%'},
+  {edu:'大专',count:25,rate:'47%'},
+  {edu:'中专',count:12,rate:'23%'},
+  {edu:'高中',count:7,rate:'13%'}
+];
+
+var hrAgeDist = [
+  {age:'20-25',count:12,rate:'23%'},
+  {age:'26-30',count:18,rate:'34%'},
+  {age:'31-35',count:14,rate:'26%'},
+  {age:'36-40',count:6,rate:'11%'},
+  {age:'40+',count:3,rate:'6%'}
+];
+
+var hrGenderDist = [
+  {gender:'男',count:31,rate:'58%'},
+  {gender:'女',count:22,rate:'42%'}
+];
+
+var hrPlan = [
+  {item:'在编人数',target:'48人',data:[53,53,53,53,53,52,51,50,49,48,48,48]},
+  {item:'优化人数',target:'11人',data:[0,0,0,0,0,1,2,3,4,5,5,5]},
+  {item:'新增人数',target:'14人',data:[2,3,2,2,1,1,1,1,0,0,0,0]},
+  {item:'调岗人数',target:'7人',data:[1,1,1,1,1,1,1,0,0,0,0,0]}
+];
+
+var hrChange = [
+  {name:'张艳',dept:'综合物料库',post:'专员',m4:'在岗',m5:'在岗',m6:'调岗',m7:'后勤保障处',m8:'在岗'},
+  {name:'王强',dept:'行政事务处',post:'专员',m4:'在岗',m5:'在岗',m6:'在岗',m7:'在岗',m8:'优化'},
+  {name:'刘芳',dept:'专项监察处',post:'专员',m4:'在岗',m5:'在岗',m6:'晋升',m7:'主管',m8:'在岗'}
+];
+
+// ---- 财务数据 ----
+var finStruct = [
+  {cat:'人员费用',item:'工资福利',budget:1200,rate:'56%',compare:'-18%',strategy:'优化编制降低成本'},
+  {cat:'运营费用',item:'水电费',budget:280,rate:'13%',compare:'-5%',strategy:'节能改造'},
+  {cat:'运营费用',item:'办公费',budget:180,rate:'8%',compare:'-10%',strategy:'无纸化办公'},
+  {cat:'项目费用',item:'信息化建设',budget:300,rate:'14%',compare:'+20%',strategy:'分期投入'},
+  {cat:'其他费用',item:'维修维护',budget:179,rate:'8%',compare:'-8%',strategy:'预防性维护'}
+];
+
+var finTimeline = [
+  {phase:'第一阶段',date:'2026.5-6',items:['专业项目启动','信息化方案设计','人员编制优化']},
+  {phase:'第二阶段',date:'2026.7-8',items:['项目全面推进','系统开发实施','预算执行监控']},
+  {phase:'第三阶段',date:'2026.9-10',items:['项目验收交付','系统上线运行','效果评估']},
+  {phase:'第四阶段',date:'2026.11-12',items:['总结复盘','预算调整','下年度规划']},
+  {phase:'第五阶段',date:'2027.1-3',items:['长效运营','持续优化','绩效考核']}
+];
+
+var finReduction = [
+  {subject:'工资福利',prev:1467,curr:1200,change:'-18%',detail:'优化11人编制',level:'P0',plan:'通过岗位合并、流程优化减少编制'},
+  {subject:'水电费',prev:295,curr:280,change:'-5%',detail:'节能改造',level:'P1',plan:'更换LED灯具、优化空调使用'},
+  {subject:'办公费',prev:200,curr:180,change:'-10%',detail:'无纸化办公',level:'P1',plan:'推广电子审批、减少纸质文件'},
+  {subject:'差旅费',prev:150,curr:130,change:'-13%',detail:'视频会议替代',level:'P2',plan:'加强差旅审批管控'},
+  {subject:'维修费',prev:195,curr:179,change:'-8%',detail:'预防性维护',level:'P2',plan:'建立设备定期保养制度'}
+];
+
+function calcProgress(pStat){
+  var done = pStat.filter(s=>s=='done').length;
+  return Math.round(done/pStat.length*100);
+}
+
+function getStatusTag(st){
+  if(st=='done') return '<span class="stag stag-done">已完成</span>';
+  if(st=='doing') return '<span class="stag stag-doing">进行中</span>';
+  return '<span class="stag stag-plan">待启动</span>';
+}
+
+function renderDashProj(){
+  var html = '';
+  projData.slice(0,8).forEach((p,i)=>{
+    var prog = calcProgress(p.pStat);
+    html += `<tr><td>${i+1}</td><td>${p.name}</td><td><span class="dept-tag">${p.dept}</span></td><td>${p.period}</td><td><div class="pbar"><div class="pf" style="width:${prog}%"></div></div></td></tr>`;
+  });
+  document.getElementById('dashProj').innerHTML = html;
+}
+
+function renderDashIt(){
+  var html = '';
+  itData.slice(0,8).forEach((p,i)=>{
+    html += `<tr><td>${i+1}</td><td>${p.sub}</td><td>${p.main}</td><td>${p.period}</td><td>${getStatusTag(p.status)}</td></tr>`;
+  });
+  document.getElementById('dashIt').innerHTML = html;
+}
+
+function renderDashDept(){
+  var html = '';
+  hrDeptDist.forEach(d=>{
+    html += `<tr><td>${d.dept}</td><td class="t-c">${d.count}</td><td class="t-c">${d.rate}</td></tr>`;
+  });
+  document.getElementById('dashDept').innerHTML = html;
+}
+
+function renderDashFin(){
+  var html = '';
+  finStruct.forEach(f=>{
+    html += `<tr><td>${f.cat}</td><td class="t-c">${f.budget}</td><td class="t-c">${f.rate}</td><td class="t-c">${f.compare}</td></tr>`;
+  });
+  document.getElementById('dashFin').innerHTML = html;
+}
+
+function renderProTbody(){
+  var html = '';
+  projData.forEach((p,i)=>{
+    var prog = calcProgress(p.pStat);
+    var dots = p.pStat.map((s,j)=>{
+      var cls = s=='done'?'done':s=='doing'?'doing':'todo';
+      return `<span class="${cls}">${j+1}</span>`;
+    }).join('');
+    html += `<tr class="proj-row" onclick="showProjDetail(${p.id})"><td>${i+1}</td><td>${p.name}</td><td><span class="dept-tag">${p.dept}</span></td><td title="${p.goal}">${p.goal.substring(0,20)}...</td><td>${p.person}</td><td>${p.period}</td><td>${p.start}</td><td>${p.end}</td><td><div class="phase-dots">${dots}</div></td></tr>`;
+  });
+  document.getElementById('proTbody').innerHTML = html;
+}
+
+function renderItTbody(){
+  var html = '';
+  itData.forEach((p,i)=>{
+    html += `<tr><td>${i+1}</td><td>${p.main}</td><td>${p.sub}</td><td title="${p.goal}">${p.goal.substring(0,25)}...</td><td>${p.period}</td><td>${getStatusTag(p.status)}</td><td title="${p.issue}">${p.issue}</td><td title="${p.solve}">${p.solve}</td></tr>`;
+  });
+  document.getElementById('itTbody').innerHTML = html;
+}
+
+function renderHrRoster(){
+  var html = '';
+  hrRoster.forEach(p=>{
+    html += `<tr><td>${p.name}</td><td>${p.post}</td><td>${p.dept}</td><td>${p.edu}</td><td class="t-c">${p.age}</td><td class="t-c">${p.service}</td><td>${p.match}</td></tr>`;
+  });
+  document.getElementById('hrRoster').innerHTML = html;
+}
+
+function renderHrEdu(){
+  var html = '';
+  hrEduDist.forEach(d=>{
+    html += `<tr><td>${d.edu}</td><td class="t-c">${d.count}</td><td class="t-c">${d.rate}</td></tr>`;
+  });
+  document.getElementById('hrEdu').innerHTML = html;
+}
+
+function renderHrAge(){
+  var html = '';
+  hrAgeDist.forEach(d=>{
+    html += `<tr><td>${d.age}</td><td class="t-c">${d.count}</td><td class="t-c">${d.rate}</td></tr>`;
+  });
+  document.getElementById('hrAge').innerHTML = html;
+}
+
+function renderHrGender(){
+  var html = '';
+  hrGenderDist.forEach(d=>{
+    html += `<tr><td>${d.gender}</td><td class="t-c">${d.count}</td><td class="t-c">${d.rate}</td></tr>`;
+  });
+  document.getElementById('hrGender').innerHTML = html;
+}
+
+function renderHrPlan(){
+  var html = '';
+  hrPlan.forEach(p=>{
+    var data = p.data.map(v=>`<td class="t-c">${v}</td>`).join('');
+    html += `<tr><td>${p.item}</td><td class="t-c">${p.target}</td>${data}</tr>`;
+  });
+  document.getElementById('hrPlan').innerHTML = html;
+}
+
+function renderHrChange(){
+  var html = '';
+  hrChange.forEach(p=>{
+    html += `<tr><td>${p.name}</td><td>${p.dept}</td><td>${p.post}</td><td>${p.m4}</td><td>${p.m5}</td><td>${p.m6}</td><td>${p.m7}</td><td>${p.m8}</td></tr>`;
+  });
+  document.getElementById('hrChange').innerHTML = html;
+}
+
+function renderFinStruct(){
+  var html = '';
+  finStruct.forEach(f=>{
+    html += `<tr><td>${f.cat}</td><td>${f.item}</td><td class="t-c">${f.budget}</td><td class="t-c">${f.rate}</td><td class="t-c">${f.compare}</td><td>${f.strategy}</td></tr>`;
+  });
+  document.getElementById('finStruct').innerHTML = html;
+}
+
+function renderFinTimeline(){
+  var html = '';
+  finTimeline.forEach(t=>{
+    var items = t.items.map(i=>`<div>${i}</div>`).join('');
+    html += `<div class="tl-phase"><div class="tp-h">${t.phase}<span class="tp-date">${t.date}</span></div><div class="tp-actions">${items}</div></div>`;
+  });
+  document.getElementById('finTimeline').innerHTML = html;
+}
+
+function renderFinReduction(){
+  var html = '';
+  finReduction.forEach(f=>{
+    html += `<tr><td>${f.subject}</td><td class="t-c">${f.prev}</td><td class="t-c">${f.curr}</td><td class="t-c">${f.change}</td><td>${f.detail}</td><td class="t-c">${f.level}</td><td>${f.plan}</td></tr>`;
+  });
+  document.getElementById('finReduction').innerHTML = html;
+}
+
+function renderLinkConfig(){
+  var html = '';
+  projData.slice(0,10).forEach((p,i)=>{
+    html += `<tr><td>${p.name}</td><td><select><option>未关联</option></select></td><td><input type="number" placeholder="0" style="width:80px"/></td><td><input type="number" placeholder="0" style="width:80px"/></td><td>${p.person}</td></tr>`;
+  });
+  document.getElementById('linkConfig').innerHTML = html;
+}
+
+function showProjDetail(id){
+  var p = projData.find(x=>x.id==id);
+  if(!p) return;
+  document.getElementById('projDetailTitle').textContent = p.name;
+  document.getElementById('projDetailContent').innerHTML = `
+    <div style="grid-template-columns:1fr 1fr;gap:20px;display:grid;">
+      <div><strong>所属部门:</strong> ${p.dept}</div>
+      <div><strong>责任人:</strong> ${p.person}</div>
+      <div><strong>周期:</strong> ${p.period}</div>
+      <div><strong>时间:</strong> ${p.start} - ${p.end}</div>
+    </div>
+    <div style="margin-top:16px"><strong>核心目标:</strong><br>${p.goal}</div>
+  `;
+  document.getElementById('projDetail').style.display = 'block';
+}
+
+function closeProjDetail(){
+  document.getElementById('projDetail').style.display = 'none';
+}
+
+function switchPage(pg){
+  document.querySelectorAll('.pg').forEach(e=>e.classList.remove('on'));
+  document.querySelectorAll('.sidebar nav a').forEach(e=>e.classList.remove('on'));
+  document.getElementById('pg-'+pg).classList.add('on');
+  document.querySelector(`.sidebar nav a[data-pg="${pg}"]`).classList.add('on');
+  document.getElementById('pageTitle').textContent = pageTitles[pg];
+}
+
+function switchHrTab(tab){
+  document.querySelectorAll('[id^=inner-hr-]').forEach(e=>e.classList.remove('on'));
+  document.querySelectorAll('#hrTabs button').forEach(e=>e.classList.remove('on'));
+  document.getElementById('inner-hr-'+tab).classList.add('on');
+  document.querySelector(`#hrTabs button[data-hr="${tab}"]`).classList.add('on');
+}
+
+function switchFinTab(tab){
+  document.querySelectorAll('[id^=inner-fin-]').forEach(e=>e.classList.remove('on'));
+  document.querySelectorAll('#finTabs button').forEach(e=>e.classList.remove('on'));
+  document.getElementById('inner-fin-'+tab).classList.add('on');
+  document.querySelector(`#finTabs button[data-fin="${tab}"]`).classList.add('on');
+}
+
+document.querySelectorAll('.sidebar nav a').forEach(a=>{
+  a.addEventListener('click',(e)=>{e.preventDefault();switchPage(a.dataset.pg);});
+});
+
+document.querySelectorAll('#hrTabs button').forEach(b=>{
+  b.addEventListener('click',(e)=>{switchHrTab(b.dataset.hr);});
+});
+
+document.querySelectorAll('#finTabs button').forEach(b=>{
+  b.addEventListener('click',(e)=>{switchFinTab(b.dataset.fin);});
+});
+
+renderDashProj();
+renderDashIt();
+renderDashDept();
+renderDashFin();
+renderProTbody();
+renderItTbody();
+renderHrRoster();
+renderHrEdu();
+renderHrAge();
+renderHrGender();
+renderHrPlan();
+renderHrChange();
+renderFinStruct();
+renderFinTimeline();
+renderFinReduction();
+renderLinkConfig();
+</script>
+</body>
+</html>
