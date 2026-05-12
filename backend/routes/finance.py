@@ -1,8 +1,9 @@
 """财务管控 API"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
+from auth import require_permission
 
 router = APIRouter()
 
@@ -39,7 +40,7 @@ class ReductionCreate(BaseModel):
 
 
 @router.get("/indicators")
-def get_indicators():
+def get_indicators(current_user: dict = Depends(require_permission("finance:read"))):
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("SELECT * FROM financial_indicators ORDER BY id").fetchall()]
@@ -61,7 +62,7 @@ def get_indicators():
 
 
 @router.get("/budget")
-def get_budget():
+def get_budget(current_user: dict = Depends(require_permission("finance:read"))):
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("""
@@ -75,7 +76,7 @@ def get_budget():
 
 
 @router.post("/budget")
-def create_budget(data: BudgetCreate):
+def create_budget(data: BudgetCreate, current_user: dict = Depends(require_permission("finance:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM financial_budget")
@@ -94,7 +95,7 @@ def create_budget(data: BudgetCreate):
 
 
 @router.put("/budget/{budget_id}")
-def update_budget(budget_id: int, data: BudgetCreate):
+def update_budget(budget_id: int, data: BudgetCreate, current_user: dict = Depends(require_permission("finance:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT id FROM financial_budget WHERE id=?", (budget_id,))
@@ -116,7 +117,7 @@ def update_budget(budget_id: int, data: BudgetCreate):
 
 
 @router.delete("/budget/{budget_id}")
-def delete_budget(budget_id: int):
+def delete_budget(budget_id: int, current_user: dict = Depends(require_permission("finance:delete"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("DELETE FROM financial_budget WHERE id=?", (budget_id,))
@@ -129,7 +130,7 @@ def delete_budget(budget_id: int):
 
 
 @router.get("/timeline")
-def get_timeline():
+def get_timeline(current_user: dict = Depends(require_permission("finance:read"))):
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("""
@@ -166,7 +167,7 @@ def get_timeline():
 
 
 @router.get("/reduction")
-def get_reduction():
+def get_reduction(current_user: dict = Depends(require_permission("finance:read"))):
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("""
@@ -180,7 +181,7 @@ def get_reduction():
 
 
 @router.post("/reduction")
-def create_reduction(data: ReductionCreate):
+def create_reduction(data: ReductionCreate, current_user: dict = Depends(require_permission("finance:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM financial_reduction")
@@ -198,7 +199,7 @@ def create_reduction(data: ReductionCreate):
 
 
 @router.put("/reduction/{reduction_id}")
-def update_reduction(reduction_id: int, data: ReductionCreate):
+def update_reduction(reduction_id: int, data: ReductionCreate, current_user: dict = Depends(require_permission("finance:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT id FROM financial_reduction WHERE id=?", (reduction_id,))
@@ -218,7 +219,7 @@ def update_reduction(reduction_id: int, data: ReductionCreate):
 
 
 @router.delete("/reduction/{reduction_id}")
-def delete_reduction(reduction_id: int):
+def delete_reduction(reduction_id: int, current_user: dict = Depends(require_permission("finance:delete"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("DELETE FROM financial_reduction WHERE id=?", (reduction_id,))

@@ -1,0 +1,83 @@
+.um-page {
+  max-width: 1100px;
+}
+
+.um-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.um-content {
+  margin-top: 16px;
+}
+
+.um-form-card {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.um-form-card h4 {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.um-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.um-form-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.um-checkbox-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.um-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.um-checkbox input {
+  margin: 0;
+}
+
+.um-perm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.um-perm-grid .um-checkbox {
+  padding: 6px 8px;
+  border: 1px solid #E5E7EB;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.um-perm-code {
+  font-weight: 600;
+  color: #374151;
+  margin-right: 4px;
+  font-family: monospace;
+}
+
+.um-perm-name {
+  color: #6B7280;
+}

@@ -1,12 +1,13 @@
 """驾驶舱总览 - KPI + 四维概览"""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from database import get_db
+from auth import require_permission
 
 router = APIRouter()
 
 
 @router.get("/dashboard")
-def dashboard():
+def dashboard(current_user: dict = Depends(require_permission("dashboard:read"))):
     db = get_db()
     cur = db.cursor()
 

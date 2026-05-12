@@ -1,9 +1,10 @@
 """人力资源 API"""
 from datetime import date
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
+from auth import require_permission
 
 router = APIRouter()
 
@@ -26,6 +27,7 @@ class EmployeeCreate(BaseModel):
 def hr_employees(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=500),
+    current_user: dict = Depends(require_permission("employees:read")),
 ):
     db = get_db()
     cur = db.cursor()
@@ -52,7 +54,7 @@ def hr_employees(
 
 
 @router.get("/employees/{employee_id_or_id}")
-def hr_employee_detail(employee_id_or_id: str):
+def hr_employee_detail(employee_id_or_id: str, current_user: dict = Depends(require_permission("employees:read"))):
     db = get_db()
     cur = db.cursor()
     emp = None
@@ -69,7 +71,7 @@ def hr_employee_detail(employee_id_or_id: str):
 
 
 @router.post("/employees")
-def create_employee(data: EmployeeCreate):
+def create_employee(data: EmployeeCreate, current_user: dict = Depends(require_permission("employees:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM employees")
@@ -87,7 +89,7 @@ def create_employee(data: EmployeeCreate):
 
 
 @router.put("/employees/{employee_id}")
-def update_employee(employee_id: int, data: EmployeeCreate):
+def update_employee(employee_id: int, data: EmployeeCreate, current_user: dict = Depends(require_permission("employees:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT id FROM employees WHERE id=?", (employee_id,))
@@ -107,7 +109,7 @@ def update_employee(employee_id: int, data: EmployeeCreate):
 
 
 @router.delete("/employees/{employee_id}")
-def delete_employee(employee_id: int):
+def delete_employee(employee_id: int, current_user: dict = Depends(require_permission("employees:delete"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("DELETE FROM employee_monthly_status WHERE employee_name = (SELECT name FROM employees WHERE id=?)", (employee_id,))
@@ -121,7 +123,7 @@ def delete_employee(employee_id: int):
 
 
 @router.get("/distributions")
-def hr_distributions():
+def hr_distributions(current_user: dict = Depends(require_permission("hr:read"))):
     db = get_db()
     cur = db.cursor()
     today = date.today()
@@ -197,7 +199,7 @@ def hr_distributions():
 
 
 @router.get("/plan-kpi")
-def hr_plan_kpi():
+def hr_plan_kpi(current_user: dict = Depends(require_permission("hr:read"))):
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("SELECT * FROM hr_plan_kpi ORDER BY id").fetchall()]
@@ -214,7 +216,7 @@ def hr_plan_kpi():
 
 
 @router.post("/plan-kpi")
-def update_hr_plan_kpi(data: dict):
+def update_hr_plan_kpi(data: dict, current_user: dict = Depends(require_permission("hr:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("DELETE FROM hr_plan_kpi")
@@ -234,7 +236,7 @@ def update_hr_plan_kpi(data: dict):
 
 
 @router.get("/monthly-changes")
-def hr_monthly_changes():
+def hr_monthly_changes(current_user: dict = Depends(require_permission("hr:read"))):
     db = get_db()
     cur = db.cursor()
 
@@ -265,7 +267,7 @@ class MonthlyStatusUpdate(BaseModel):
 
 
 @router.put("/monthly-status")
-def update_monthly_status(data: MonthlyStatusUpdate):
+def update_monthly_status(data: MonthlyStatusUpdate, current_user: dict = Depends(require_permission("hr:write"))):
     db = get_db()
     cur = db.cursor()
     existing = cur.execute(

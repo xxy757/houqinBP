@@ -1,8 +1,9 @@
 """专业项目 CRUD"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
+from auth import require_permission
 
 router = APIRouter()
 
@@ -29,7 +30,7 @@ class PhaseCreate(BaseModel):
 
 
 @router.get("")
-def list_projects():
+def list_projects(current_user: dict = Depends(require_permission("projects:read"))):
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("""
@@ -48,7 +49,7 @@ def list_projects():
 
 
 @router.get("/{project_id}")
-def get_project(project_id: int):
+def get_project(project_id: int, current_user: dict = Depends(require_permission("projects:read"))):
     db = get_db()
     cur = db.cursor()
     proj = [dict(r) for r in cur.execute("""
@@ -70,7 +71,7 @@ def get_project(project_id: int):
 
 
 @router.post("")
-def create_project(data: ProjectCreate):
+def create_project(data: ProjectCreate, current_user: dict = Depends(require_permission("projects:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM professional_projects")
@@ -87,7 +88,7 @@ def create_project(data: ProjectCreate):
 
 
 @router.put("/{project_id}")
-def update_project(project_id: int, data: ProjectCreate):
+def update_project(project_id: int, data: ProjectCreate, current_user: dict = Depends(require_permission("projects:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT id FROM professional_projects WHERE id=?", (project_id,))
@@ -107,7 +108,7 @@ def update_project(project_id: int, data: ProjectCreate):
 
 
 @router.delete("/{project_id}")
-def delete_project(project_id: int):
+def delete_project(project_id: int, current_user: dict = Depends(require_permission("projects:delete"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("DELETE FROM professional_project_phases WHERE project_id=?", (project_id,))
@@ -118,7 +119,7 @@ def delete_project(project_id: int):
 
 
 @router.post("/{project_id}/phases")
-def add_phase(project_id: int, data: PhaseCreate):
+def add_phase(project_id: int, data: PhaseCreate, current_user: dict = Depends(require_permission("projects:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("""
@@ -131,7 +132,7 @@ def add_phase(project_id: int, data: PhaseCreate):
 
 
 @router.delete("/{project_id}/phases/{phase_id}")
-def delete_phase(project_id: int, phase_id: int):
+def delete_phase(project_id: int, phase_id: int, current_user: dict = Depends(require_permission("projects:delete"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("DELETE FROM professional_project_phases WHERE id=? AND project_id=?", (phase_id, project_id))

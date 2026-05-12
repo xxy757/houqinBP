@@ -1,5 +1,19 @@
+function getToken(): string | null {
+  return localStorage.getItem('token')
+}
+
 async function fetchAPI<T>(path: string): Promise<T> {
-  const res = await fetch(`/api${path}`)
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`/api${path}`, { headers })
+  if (res.status === 401) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`)
   }
@@ -7,11 +21,22 @@ async function fetchAPI<T>(path: string): Promise<T> {
 }
 
 async function sendAPI<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (body) headers['Content-Type'] = 'application/json'
+
   const res = await fetch(`/api${path}`, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   })
+  if (res.status === 401) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`)
   }
@@ -260,4 +285,63 @@ export const api = {
   createFinanceReduction: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/finance/reduction', data),
   updateFinanceReduction: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/finance/reduction/${id}`, data),
   deleteFinanceReduction: (id: number) => sendAPI<{ message: string }>('DELETE', `/finance/reduction/${id}`),
+}
+
+export interface LoginResponse {
+  token: string
+  user: {
+    id: number
+    username: string
+    display_name: string
+    permissions: string[]
+  }
+}
+
+export interface UserItem {
+  id: number
+  username: string
+  display_name: string
+  is_active: number
+  created_at: string
+  roles: { id: number; code: string; name: string }[]
+}
+
+export interface RoleItem {
+  id: number
+  code: string
+  name: string
+  description: string | null
+  created_at: string
+  permissions: { id: number; code: string; name: string }[]
+}
+
+export interface PermissionItem {
+  id: number
+  code: string
+  name: string
+  description: string | null
+}
+
+export const authApi = {
+  login: (username: string, password: string) =>
+    sendAPI<LoginResponse>('POST', '/auth/login', { username, password }),
+  getMe: () => fetchAPI<{ id: number; username: string; permissions: string[] }>('/auth/me'),
+}
+
+export const rbacApi = {
+  getUsers: () => fetchAPI<UserItem[]>('/users'),
+  createUser: (data: { username: string; password: string; display_name: string; role_ids: number[] }) =>
+    sendAPI<{ id: number; message: string }>('POST', '/users', data),
+  updateUser: (id: number, data: Record<string, unknown>) =>
+    sendAPI<{ message: string }>('PUT', `/users/${id}`, data),
+  deleteUser: (id: number) => sendAPI<{ message: string }>('DELETE', `/users/${id}`),
+
+  getRoles: () => fetchAPI<RoleItem[]>('/roles'),
+  createRole: (data: { code: string; name: string; description?: string; permission_ids: number[] }) =>
+    sendAPI<{ id: number; message: string }>('POST', '/roles', data),
+  updateRole: (id: number, data: Record<string, unknown>) =>
+    sendAPI<{ message: string }>('PUT', `/roles/${id}`, data),
+  deleteRole: (id: number) => sendAPI<{ message: string }>('DELETE', `/roles/${id}`),
+
+  getPermissions: () => fetchAPI<PermissionItem[]>('/permissions'),
 }

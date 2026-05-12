@@ -1,8 +1,9 @@
 """信息化方案 CRUD"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
+from auth import require_permission
 
 router = APIRouter()
 
@@ -24,7 +25,7 @@ class ITProjectCreate(BaseModel):
 
 
 @router.get("")
-def list_it_projects():
+def list_it_projects(current_user: dict = Depends(require_permission("projects:read"))):
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("""
@@ -43,7 +44,7 @@ def list_it_projects():
 
 
 @router.get("/{project_id}")
-def get_it_project(project_id: int):
+def get_it_project(project_id: int, current_user: dict = Depends(require_permission("projects:read"))):
     db = get_db()
     cur = db.cursor()
     proj = [dict(r) for r in cur.execute("""
@@ -65,7 +66,7 @@ def get_it_project(project_id: int):
 
 
 @router.post("")
-def create_it_project(data: ITProjectCreate):
+def create_it_project(data: ITProjectCreate, current_user: dict = Depends(require_permission("projects:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM it_projects")
@@ -82,7 +83,7 @@ def create_it_project(data: ITProjectCreate):
 
 
 @router.put("/{project_id}")
-def update_it_project(project_id: int, data: ITProjectCreate):
+def update_it_project(project_id: int, data: ITProjectCreate, current_user: dict = Depends(require_permission("projects:write"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT id FROM it_projects WHERE id=?", (project_id,))
@@ -103,7 +104,7 @@ def update_it_project(project_id: int, data: ITProjectCreate):
 
 
 @router.delete("/{project_id}")
-def delete_it_project(project_id: int):
+def delete_it_project(project_id: int, current_user: dict = Depends(require_permission("projects:delete"))):
     db = get_db()
     cur = db.cursor()
     cur.execute("DELETE FROM it_project_phases WHERE project_id=?", (project_id,))
