@@ -3,13 +3,15 @@ from datetime import date
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional
-from database import get_db
+from database import get_db, transaction
 from auth import require_permission
+from logger import log_operation
 
 router = APIRouter()
 
 
 class EmployeeCreate(BaseModel):
+    version: Optional[int] = None
     employee_id: Optional[str] = None
     name: str
     post: Optional[str] = None
@@ -36,7 +38,7 @@ def hr_employees(
     today = date.today()
     rows = [dict(r) for r in cur.execute(f"""
         SELECT id, employee_id, name, post, department_name as dept, education as edu,
-               age, entry_date, professional_match as match, gender, status
+               age, entry_date, professional_match as match, gender, status, version
         FROM employees
         ORDER BY id LIMIT ? OFFSET ?
     """, (page_size, offset)).fetchall()]
@@ -73,52 +75,68 @@ def hr_employee_detail(employee_id_or_id: str, current_user: dict = Depends(requ
 @router.post("/employees")
 def create_employee(data: EmployeeCreate, current_user: dict = Depends(require_permission("employees:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM employees")
-    new_id = cur.fetchone()[0]
-    cur.execute("""
-        INSERT INTO employees (id, employee_id, name, post, department_name, education,
-            age, entry_date, professional_match, gender, status, phone)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (new_id, data.employee_id, data.name, data.post, data.department_name,
-          data.education, data.age, data.entry_date, data.professional_match,
-          data.gender, data.status, data.phone))
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM employees")
+        new_id = cur.fetchone()[0]
+        cur.execute("""
+            INSERT INTO employees (id, employee_id, name, post, department_name, education,
+                age, entry_date, professional_match, gender, status, phone)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (new_id, data.employee_id, data.name, data.post, data.department_name,
+              data.education, data.age, data.entry_date, data.professional_match,
+              data.gender, data.status, data.phone))
     db.close()
-    return {"id": new_id, "message": "创建成功"}
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "CREATE", "employees", str(new_id), f"新增员工: {data.name}")
+    return {"id": new_id, "version": 1, "message": "创建成功"}
 
 
 @router.put("/employees/{employee_id}")
 def update_employee(employee_id: int, data: EmployeeCreate, current_user: dict = Depends(require_permission("employees:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT id FROM employees WHERE id=?", (employee_id,))
-    if not cur.fetchone():
-        db.close()
-        raise HTTPException(status_code=404, detail="员工不存在")
-    cur.execute("""
-        UPDATE employees SET employee_id=?, name=?, post=?, department_name=?,
-        education=?, age=?, entry_date=?, professional_match=?, gender=?, status=?, phone=?
-        WHERE id=?
-    """, (data.employee_id, data.name, data.post, data.department_name,
-          data.education, data.age, data.entry_date, data.professional_match,
-          data.gender, data.status, data.phone, employee_id))
-    db.commit()
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        cur = db.cursor()
+        existing = cur.execute("SELECT id, version FROM employees WHERE id=?", (employee_id,)).fetchone()
+        if not existing:
+            db.rollback()
+            db.close()
+            raise HTTPException(status_code=404, detail="员工不存在")
+        current_version = existing["version"]
+        requested_version = data.version or current_version
+        cur.execute("""
+            UPDATE employees SET employee_id=?, name=?, post=?, department_name=?,
+            education=?, age=?, entry_date=?, professional_match=?, gender=?, status=?, phone=?,
+            version=version+1, updated_at=datetime('now','localtime')
+            WHERE id=? AND version=?
+        """, (data.employee_id, data.name, data.post, data.department_name,
+              data.education, data.age, data.entry_date, data.professional_match,
+              data.gender, data.status, data.phone, employee_id, requested_version))
+        if cur.rowcount == 0:
+            db.rollback()
+            db.close()
+            raise HTTPException(status_code=409, detail="数据已被其他用户修改，请刷新后重试")
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     db.close()
-    return {"message": "更新成功"}
-
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "UPDATE", "employees", str(employee_id), f"更新员工: {data.name}")
+    return {"message": "更新成功", "version": (requested_version or 0) + 1}
 
 @router.delete("/employees/{employee_id}")
 def delete_employee(employee_id: int, current_user: dict = Depends(require_permission("employees:delete"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("DELETE FROM employee_monthly_status WHERE employee_name = (SELECT name FROM employees WHERE id=?)", (employee_id,))
-    cur.execute("DELETE FROM employees WHERE id=?", (employee_id,))
-    if cur.rowcount == 0:
-        db.close()
-        raise HTTPException(status_code=404, detail="员工不存在")
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("DELETE FROM employee_monthly_status WHERE employee_name = (SELECT name FROM employees WHERE id=?)", (employee_id,))
+        cur.execute("DELETE FROM employees WHERE id=?", (employee_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="员工不存在")
     db.close()
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "DELETE", "employees", str(employee_id), "删除员工")
     return {"message": "删除成功"}
 
 
@@ -218,22 +236,22 @@ def hr_plan_kpi(current_user: dict = Depends(require_permission("hr:read"))):
 @router.post("/plan-kpi")
 def update_hr_plan_kpi(data: dict, current_user: dict = Depends(require_permission("hr:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("DELETE FROM hr_plan_kpi")
-    for item in data.get("items", []):
-        cur.execute("""
-            INSERT INTO hr_plan_kpi (indicator, target, m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, (
-            item.get("indicator"), item.get("target"),
-            item.get("m1"), item.get("m2"), item.get("m3"), item.get("m4"),
-            item.get("m5"), item.get("m6"), item.get("m7"), item.get("m8"),
-            item.get("m9"), item.get("m10"), item.get("m11"), item.get("m12"),
-        ))
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("DELETE FROM hr_plan_kpi")
+        for item in data.get("items", []):
+            cur.execute("""
+                INSERT INTO hr_plan_kpi (indicator, target, m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (
+                item.get("indicator"), item.get("target"),
+                item.get("m1"), item.get("m2"), item.get("m3"), item.get("m4"),
+                item.get("m5"), item.get("m6"), item.get("m7"), item.get("m8"),
+                item.get("m9"), item.get("m10"), item.get("m11"), item.get("m12"),
+            ))
     db.close()
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "UPDATE", "hr_kpi", "", "批量更新人力规划KPI")
     return {"message": "更新成功"}
-
 
 @router.get("/monthly-changes")
 def hr_monthly_changes(current_user: dict = Depends(require_permission("hr:read"))):
@@ -269,21 +287,22 @@ class MonthlyStatusUpdate(BaseModel):
 @router.put("/monthly-status")
 def update_monthly_status(data: MonthlyStatusUpdate, current_user: dict = Depends(require_permission("hr:write"))):
     db = get_db()
-    cur = db.cursor()
-    existing = cur.execute(
-        "SELECT id FROM employee_monthly_status WHERE employee_name = ? AND month = ?",
-        (data.employee_name, data.month)
-    ).fetchone()
-    if existing:
-        cur.execute(
-            "UPDATE employee_monthly_status SET status = ? WHERE employee_name = ? AND month = ?",
-            (data.status, data.employee_name, data.month)
-        )
-    else:
-        cur.execute(
-            "INSERT INTO employee_monthly_status (employee_name, month, status) VALUES (?,?,?)",
-            (data.employee_name, data.month, data.status)
-        )
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        existing = cur.execute(
+            "SELECT id FROM employee_monthly_status WHERE employee_name = ? AND month = ?",
+            (data.employee_name, data.month)
+        ).fetchone()
+        if existing:
+            cur.execute(
+                "UPDATE employee_monthly_status SET status = ? WHERE employee_name = ? AND month = ?",
+                (data.status, data.employee_name, data.month)
+            )
+        else:
+            cur.execute(
+                "INSERT INTO employee_monthly_status (employee_name, month, status) VALUES (?,?,?)",
+                (data.employee_name, data.month, data.status)
+            )
     db.close()
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "UPDATE", "employees", "", f"更新月度状态: {data.employee_name} M{data.month}={data.status}")
     return {"message": "更新成功"}

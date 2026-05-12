@@ -9,6 +9,7 @@ import HRPage from './pages/HRPage'
 import FinancePage from './pages/FinancePage'
 import LinkConfigPage from './pages/LinkConfigPage'
 import UserManagementPage from './pages/UserManagementPage'
+import AuditLogPage from './pages/AuditLogPage'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="fin" element={<FinancePage />} />
           <Route path="link" element={<LinkConfigPage />} />
           <Route path="admin/users" element={<ProtectedRoute permission="users:read"><UserManagementPage /></ProtectedRoute>} />
+          <Route path="admin/audit" element={<ProtectedRoute permission="audits:read"><AuditLogPage /></ProtectedRoute>} />
         </Route>
       </Routes>
     </BrowserRouter>

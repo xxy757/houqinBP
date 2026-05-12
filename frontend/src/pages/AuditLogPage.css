@@ -1,0 +1,81 @@
+.audit-page {
+  max-width: 1200px;
+}
+
+.audit-count {
+  font-size: 12px;
+  color: #6B7280;
+  margin-left: 12px;
+}
+
+.audit-filters {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.audit-select, .audit-input {
+  padding: 7px 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 12px;
+  outline: none;
+  background: #fff;
+}
+
+.audit-select:focus, .audit-input:focus {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26,115,232,.1);
+}
+
+.audit-input {
+  min-width: 160px;
+}
+
+.audit-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.audit-login { background: #DBEAFE; color: #1D4ED8; }
+.audit-fail { background: #FEE2E2; color: #DC2626; }
+.audit-create { background: #DCFCE7; color: #16A34A; }
+.audit-update { background: #FEF3C7; color: #D97706; }
+.audit-delete { background: #FEE2E2; color: #DC2626; }
+.audit-export { background: #E0E7FF; color: #4F46E5; }
+
+.audit-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 12px;
+}
+
+.audit-pager button {
+  padding: 6px 14px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.audit-pager button:disabled {
+  color: #D1D5DB;
+  cursor: not-allowed;
+}
+
+.audit-pager button:hover:not(:disabled) {
+  background: #F3F4F6;
+}
+
+.audit-pager span {
+  font-size: 12px;
+  color: #6B7280;
+}

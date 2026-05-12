@@ -2,14 +2,16 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
-from database import get_db
+from database import get_db, transaction
 from auth import require_permission
+from logger import log_operation
 
 router = APIRouter()
 
 
 class ProjectCreate(BaseModel):
     id: Optional[int] = None
+    version: Optional[int] = None
     department: str
     name: str
     goal: Optional[str] = None
@@ -35,7 +37,7 @@ def list_projects(current_user: dict = Depends(require_permission("projects:read
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("""
         SELECT id, department as dept, name, goal, context, deliverable,
-               person, start_date as start, end_date as "end", duration as period, phase_count as phases
+               person, start_date as start, end_date as "end", duration as period, phase_count as phases, version
         FROM professional_projects ORDER BY id
     """).fetchall()]
     for p in rows:
@@ -54,7 +56,7 @@ def get_project(project_id: int, current_user: dict = Depends(require_permission
     cur = db.cursor()
     proj = [dict(r) for r in cur.execute("""
         SELECT id, department as dept, name, goal, context, deliverable,
-               person, start_date as start, end_date as "end", duration as period, phase_count as phases
+               person, start_date as start, end_date as "end", duration as period, phase_count as phases, version
         FROM professional_projects WHERE id = ?
     """, (project_id,)).fetchall()]
     if not proj:
@@ -73,50 +75,69 @@ def get_project(project_id: int, current_user: dict = Depends(require_permission
 @router.post("")
 def create_project(data: ProjectCreate, current_user: dict = Depends(require_permission("projects:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM professional_projects")
-    new_id = data.id or cur.fetchone()[0]
-    cur.execute("""
-        INSERT INTO professional_projects (id, department, name, goal, context, deliverable, person, start_date, end_date, duration, phase_count)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?)
-    """, (new_id, data.department, data.name, data.goal, data.context,
-          data.deliverable, data.person, data.start_date, data.end_date,
-          data.duration, data.phase_count))
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM professional_projects")
+        new_id = data.id or cur.fetchone()[0]
+        cur.execute("""
+            INSERT INTO professional_projects (id, department, name, goal, context, deliverable, person, start_date, end_date, duration, phase_count)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        """, (new_id, data.department, data.name, data.goal, data.context,
+              data.deliverable, data.person, data.start_date, data.end_date,
+              data.duration, data.phase_count))
     db.close()
-    return {"id": new_id, "message": "创建成功"}
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "CREATE", "projects", str(new_id), f"创建专业项目: {data.name}")
+    return {"id": new_id, "version": 1, "message": "创建成功"}
 
 
 @router.put("/{project_id}")
 def update_project(project_id: int, data: ProjectCreate, current_user: dict = Depends(require_permission("projects:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT id FROM professional_projects WHERE id=?", (project_id,))
-    if not cur.fetchone():
-        db.close()
-        raise HTTPException(status_code=404, detail="项目不存在")
-    cur.execute("""
-        UPDATE professional_projects SET department=?, name=?, goal=?, context=?,
-        deliverable=?, person=?, start_date=?, end_date=?, duration=?, phase_count=?
-        WHERE id=?
-    """, (data.department, data.name, data.goal, data.context,
-          data.deliverable, data.person, data.start_date, data.end_date,
-          data.duration, data.phase_count, project_id))
-    db.commit()
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        cur = db.cursor()
+        existing = cur.execute(
+            "SELECT id, version FROM professional_projects WHERE id=?",
+            (project_id,)
+        ).fetchone()
+        if not existing:
+            db.rollback()
+            db.close()
+            raise HTTPException(status_code=404, detail="项目不存在")
+        current_version = existing["version"]
+        requested_version = data.version or current_version
+        cur.execute("""
+            UPDATE professional_projects SET department=?, name=?, goal=?, context=?,
+            deliverable=?, person=?, start_date=?, end_date=?, duration=?, phase_count=?,
+            version=version+1, updated_at=datetime('now','localtime')
+            WHERE id=? AND version=?
+        """, (data.department, data.name, data.goal, data.context,
+              data.deliverable, data.person, data.start_date, data.end_date,
+              data.duration, data.phase_count, project_id, requested_version))
+        if cur.rowcount == 0:
+            db.rollback()
+            db.close()
+            raise HTTPException(status_code=409, detail="数据已被其他用户修改，请刷新后重试")
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     db.close()
-    return {"message": "更新成功"}
-
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "UPDATE", "projects", str(project_id), f"更新专业项目: {data.name}")
+    return {"message": "更新成功", "version": (requested_version or 0) + 1}
 
 @router.delete("/{project_id}")
 def delete_project(project_id: int, current_user: dict = Depends(require_permission("projects:delete"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("DELETE FROM professional_project_phases WHERE project_id=?", (project_id,))
-    cur.execute("DELETE FROM professional_projects WHERE id=?", (project_id,))
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("DELETE FROM professional_project_phases WHERE project_id=?", (project_id,))
+        cur.execute("DELETE FROM professional_projects WHERE id=?", (project_id,))
     db.close()
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "DELETE", "projects", str(project_id), "删除专业项目")
     return {"message": "删除成功"}
-
 
 @router.post("/{project_id}/phases")
 def add_phase(project_id: int, data: PhaseCreate, current_user: dict = Depends(require_permission("projects:write"))):
@@ -128,6 +149,7 @@ def add_phase(project_id: int, data: PhaseCreate, current_user: dict = Depends(r
     """, (project_id, data.phase_order, data.phase_name, data.phase_content))
     db.commit()
     db.close()
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "CREATE", "projects", str(project_id), f"添加阶段: {data.phase_name}")
     return {"message": "阶段添加成功"}
 
 
@@ -138,4 +160,5 @@ def delete_phase(project_id: int, phase_id: int, current_user: dict = Depends(re
     cur.execute("DELETE FROM professional_project_phases WHERE id=? AND project_id=?", (phase_id, project_id))
     db.commit()
     db.close()
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "DELETE", "project_phases", str(phase_id), f"删除阶段: 项目#{project_id} 阶段#{phase_id}")
     return {"message": "阶段删除成功"}

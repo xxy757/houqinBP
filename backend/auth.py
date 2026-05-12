@@ -20,11 +20,12 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
-def create_access_token(user_id: int, username: str, permissions: list) -> str:
+def create_access_token(user_id: int, username: str, display_name: str, permissions: list) -> str:
     expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     payload = {
         "sub": str(user_id),
         "username": username,
+        "display_name": display_name,
         "permissions": permissions,
         "exp": expire,
     }

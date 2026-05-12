@@ -2,13 +2,15 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
-from database import get_db
+from database import get_db, transaction
 from auth import require_permission
+from logger import log_operation
 
 router = APIRouter()
 
 
 class BudgetCreate(BaseModel):
+    version: Optional[int] = None
     category: Optional[str] = None
     department: Optional[str] = None
     m1: Optional[str] = None
@@ -28,6 +30,7 @@ class BudgetCreate(BaseModel):
 
 
 class ReductionCreate(BaseModel):
+    version: Optional[int] = None
     section: Optional[str] = None
     cost_subject: Optional[str] = None
     year_2025_actual: Optional[float] = None
@@ -66,7 +69,7 @@ def get_budget(current_user: dict = Depends(require_permission("finance:read")))
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("""
-        SELECT id, category as cat, department,
+        SELECT id, category as cat, department, version,
                m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12,
                total, CAST(budget_num AS REAL) as budget
         FROM financial_budget ORDER BY id
@@ -78,56 +81,70 @@ def get_budget(current_user: dict = Depends(require_permission("finance:read")))
 @router.post("/budget")
 def create_budget(data: BudgetCreate, current_user: dict = Depends(require_permission("finance:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM financial_budget")
-    new_id = cur.fetchone()[0]
-    cur.execute("""
-        INSERT INTO financial_budget (id, category, department,
-            m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, total, budget_num)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (new_id, data.category, data.department,
-          data.m1, data.m2, data.m3, data.m4, data.m5, data.m6,
-          data.m7, data.m8, data.m9, data.m10, data.m11, data.m12,
-          data.total, data.budget_num))
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM financial_budget")
+        new_id = cur.fetchone()[0]
+        cur.execute("""
+            INSERT INTO financial_budget (id, category, department,
+                m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, total, budget_num)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (new_id, data.category, data.department,
+              data.m1, data.m2, data.m3, data.m4, data.m5, data.m6,
+              data.m7, data.m8, data.m9, data.m10, data.m11, data.m12,
+              data.total, data.budget_num))
     db.close()
-    return {"id": new_id, "message": "创建成功"}
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "CREATE", "finance", str(new_id), f"新增预算项: {data.category}")
+    return {"id": new_id, "version": 1, "message": "创建成功"}
 
 
 @router.put("/budget/{budget_id}")
 def update_budget(budget_id: int, data: BudgetCreate, current_user: dict = Depends(require_permission("finance:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT id FROM financial_budget WHERE id=?", (budget_id,))
-    if not cur.fetchone():
-        db.close()
-        raise HTTPException(status_code=404, detail="预算项不存在")
-    cur.execute("""
-        UPDATE financial_budget SET category=?, department=?,
-            m1=?, m2=?, m3=?, m4=?, m5=?, m6=?, m7=?, m8=?, m9=?, m10=?, m11=?, m12=?,
-            total=?, budget_num=?
-        WHERE id=?
-    """, (data.category, data.department,
-          data.m1, data.m2, data.m3, data.m4, data.m5, data.m6,
-          data.m7, data.m8, data.m9, data.m10, data.m11, data.m12,
-          data.total, data.budget_num, budget_id))
-    db.commit()
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        cur = db.cursor()
+        existing = cur.execute("SELECT id, version FROM financial_budget WHERE id=?", (budget_id,)).fetchone()
+        if not existing:
+            db.rollback()
+            db.close()
+            raise HTTPException(status_code=404, detail="预算项不存在")
+        current_version = existing["version"]
+        requested_version = data.version or current_version
+        cur.execute("""
+            UPDATE financial_budget SET category=?, department=?,
+                m1=?, m2=?, m3=?, m4=?, m5=?, m6=?, m7=?, m8=?, m9=?, m10=?, m11=?, m12=?,
+                total=?, budget_num=?, version=version+1
+            WHERE id=? AND version=?
+        """, (data.category, data.department,
+              data.m1, data.m2, data.m3, data.m4, data.m5, data.m6,
+              data.m7, data.m8, data.m9, data.m10, data.m11, data.m12,
+              data.total, data.budget_num, budget_id, requested_version))
+        if cur.rowcount == 0:
+            db.rollback()
+            db.close()
+            raise HTTPException(status_code=409, detail="数据已被其他用户修改，请刷新后重试")
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     db.close()
-    return {"message": "更新成功"}
-
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "UPDATE", "finance", str(budget_id), f"更新预算项: {data.category}")
+    return {"message": "更新成功", "version": (requested_version or 0) + 1}
 
 @router.delete("/budget/{budget_id}")
 def delete_budget(budget_id: int, current_user: dict = Depends(require_permission("finance:delete"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("DELETE FROM financial_budget WHERE id=?", (budget_id,))
-    if cur.rowcount == 0:
-        db.close()
-        raise HTTPException(status_code=404, detail="预算项不存在")
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("DELETE FROM financial_budget WHERE id=?", (budget_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="预算项不存在")
     db.close()
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "DELETE", "finance", str(budget_id), "删除预算项")
     return {"message": "删除成功"}
-
 
 @router.get("/timeline")
 def get_timeline(current_user: dict = Depends(require_permission("finance:read"))):
@@ -171,7 +188,7 @@ def get_reduction(current_user: dict = Depends(require_permission("finance:read"
     db = get_db()
     cur = db.cursor()
     rows = [dict(r) for r in cur.execute("""
-        SELECT id, section, cost_subject as subject, year_2025_actual as prev,
+        SELECT id, version, section, cost_subject as subject, year_2025_actual as prev,
                year_budget as curr, change_rate as change, detail_item as detail,
                category, priority as level, reduction_plan as plan
         FROM financial_reduction ORDER BY id
@@ -183,49 +200,64 @@ def get_reduction(current_user: dict = Depends(require_permission("finance:read"
 @router.post("/reduction")
 def create_reduction(data: ReductionCreate, current_user: dict = Depends(require_permission("finance:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM financial_reduction")
-    new_id = cur.fetchone()[0]
-    cur.execute("""
-        INSERT INTO financial_reduction (id, section, cost_subject, year_2025_actual,
-            year_budget, change_rate, detail_item, category, priority, reduction_plan)
-        VALUES (?,?,?,?,?,?,?,?,?,?)
-    """, (new_id, data.section, data.cost_subject, data.year_2025_actual,
-          data.year_budget, data.change_rate, data.detail_item, data.category,
-          data.priority, data.reduction_plan))
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("SELECT COALESCE(MAX(id),0)+1 FROM financial_reduction")
+        new_id = cur.fetchone()[0]
+        cur.execute("""
+            INSERT INTO financial_reduction (id, section, cost_subject, year_2025_actual,
+                year_budget, change_rate, detail_item, category, priority, reduction_plan)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (new_id, data.section, data.cost_subject, data.year_2025_actual,
+              data.year_budget, data.change_rate, data.detail_item, data.category,
+              data.priority, data.reduction_plan))
     db.close()
-    return {"id": new_id, "message": "创建成功"}
-
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "CREATE", "finance", str(new_id), f"新增降费项: {data.cost_subject}")
+    return {"id": new_id, "version": 1, "message": "创建成功"}
 
 @router.put("/reduction/{reduction_id}")
 def update_reduction(reduction_id: int, data: ReductionCreate, current_user: dict = Depends(require_permission("finance:write"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT id FROM financial_reduction WHERE id=?", (reduction_id,))
-    if not cur.fetchone():
-        db.close()
-        raise HTTPException(status_code=404, detail="降费项不存在")
-    cur.execute("""
-        UPDATE financial_reduction SET section=?, cost_subject=?, year_2025_actual=?,
-            year_budget=?, change_rate=?, detail_item=?, category=?, priority=?, reduction_plan=?
-        WHERE id=?
-    """, (data.section, data.cost_subject, data.year_2025_actual,
-          data.year_budget, data.change_rate, data.detail_item, data.category,
-          data.priority, data.reduction_plan, reduction_id))
-    db.commit()
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        cur = db.cursor()
+        existing = cur.execute("SELECT id, version FROM financial_reduction WHERE id=?", (reduction_id,)).fetchone()
+        if not existing:
+            db.rollback()
+            db.close()
+            raise HTTPException(status_code=404, detail="降费项不存在")
+        current_version = existing["version"]
+        requested_version = data.version or current_version
+        cur.execute("""
+            UPDATE financial_reduction SET section=?, cost_subject=?, year_2025_actual=?,
+                year_budget=?, change_rate=?, detail_item=?, category=?, priority=?, reduction_plan=?,
+                version=version+1
+            WHERE id=? AND version=?
+        """, (data.section, data.cost_subject, data.year_2025_actual,
+              data.year_budget, data.change_rate, data.detail_item, data.category,
+              data.priority, data.reduction_plan, reduction_id, requested_version))
+        if cur.rowcount == 0:
+            db.rollback()
+            db.close()
+            raise HTTPException(status_code=409, detail="数据已被其他用户修改，请刷新后重试")
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     db.close()
-    return {"message": "更新成功"}
-
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "UPDATE", "finance", str(reduction_id), f"更新降费项: {data.cost_subject}")
+    return {"message": "更新成功", "version": (requested_version or 0) + 1}
 
 @router.delete("/reduction/{reduction_id}")
 def delete_reduction(reduction_id: int, current_user: dict = Depends(require_permission("finance:delete"))):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("DELETE FROM financial_reduction WHERE id=?", (reduction_id,))
-    if cur.rowcount == 0:
-        db.close()
-        raise HTTPException(status_code=404, detail="降费项不存在")
-    db.commit()
+    with transaction(db):
+        cur = db.cursor()
+        cur.execute("DELETE FROM financial_reduction WHERE id=?", (reduction_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="降费项不存在")
     db.close()
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "DELETE", "finance", str(reduction_id), "删除降费项")
     return {"message": "删除成功"}

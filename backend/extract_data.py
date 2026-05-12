@@ -48,6 +48,7 @@ def create_db():
             end_date TEXT,
             duration TEXT,
             phase_count INTEGER DEFAULT 0,
+            version INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))
         );
@@ -78,6 +79,7 @@ def create_db():
             difficulty TEXT,
             solve TEXT,
             phase_count INTEGER DEFAULT 0,
+            version INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))
         );
@@ -127,6 +129,7 @@ def create_db():
             regularization_date TEXT,
             work_years INTEGER,
             native_place TEXT,
+            version INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))
         );
@@ -156,7 +159,8 @@ def create_db():
             m1 TEXT, m2 TEXT, m3 TEXT, m4 TEXT, m5 TEXT, m6 TEXT,
             m7 TEXT, m8 TEXT, m9 TEXT, m10 TEXT, m11 TEXT, m12 TEXT,
             total TEXT,
-            budget_num TEXT
+            budget_num TEXT,
+            version INTEGER DEFAULT 1
         );
 
         -- 财务宏观指标
@@ -192,7 +196,8 @@ def create_db():
             detail_item TEXT,
             category TEXT,
             priority TEXT,
-            reduction_plan TEXT
+            reduction_plan TEXT,
+            version INTEGER DEFAULT 1
         );
 
         -- 部门重点事项
@@ -211,7 +216,8 @@ def create_db():
             person TEXT,
             start_date TEXT,
             end_date TEXT,
-            section TEXT
+            section TEXT,
+            version INTEGER DEFAULT 1
         );
 
         -- RBAC 权限系统
@@ -221,6 +227,7 @@ def create_db():
             password_hash TEXT NOT NULL,
             display_name TEXT NOT NULL,
             is_active INTEGER DEFAULT 1,
+            version INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))
         );
@@ -230,6 +237,7 @@ def create_db():
             code TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL,
             description TEXT,
+            version INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now','localtime'))
         );
 
@@ -257,6 +265,22 @@ def create_db():
             FOREIGN KEY (permission_id) REFERENCES permissions(id),
             UNIQUE(role_id, permission_id)
         );
+
+        CREATE TABLE audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            action TEXT NOT NULL,
+            resource TEXT NOT NULL,
+            resource_id TEXT,
+            detail TEXT,
+            ip_address TEXT,
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE INDEX idx_audit_created ON audit_logs(created_at DESC);
+        CREATE INDEX idx_audit_action ON audit_logs(action);
+        CREATE INDEX idx_audit_resource ON audit_logs(resource);
     ''')
     conn.commit()
 
@@ -280,7 +304,8 @@ def create_db():
             ('users:read', '查看用户', '查看系统用户列表'),
             ('users:write', '管理用户', '创建、编辑、删除系统用户'),
             ('roles:read', '查看角色', '查看角色列表'),
-            ('roles:write', '管理角色', '创建、编辑、删除角色及分配权限');
+            ('roles:write', '管理角色', '创建、编辑、删除角色及分配权限'),
+            ('audits:read', '查看审计日志', '查看系统操作审计日志');
 
         INSERT INTO roles (code, name, description) VALUES
             ('admin', '系统管理员', '拥有全部权限'),

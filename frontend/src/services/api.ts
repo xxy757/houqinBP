@@ -15,7 +15,12 @@ async function fetchAPI<T>(path: string): Promise<T> {
     throw new Error('Unauthorized')
   }
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`)
+    let detail = `${res.status} ${res.statusText}`
+    try {
+      const errBody = await res.json()
+      if (errBody.detail) detail = errBody.detail
+    } catch {}
+    throw new Error(detail)
   }
   return res.json()
 }
@@ -37,8 +42,15 @@ async function sendAPI<T>(method: string, path: string, body?: unknown): Promise
     window.location.href = '/login'
     throw new Error('Unauthorized')
   }
+  if (res.status === 409) {
+    const err = await res.json().catch(() => ({ detail: '数据已被其他用户修改，请刷新后重试' }))
+    const msg = err.detail || '数据冲突，请刷新后重试'
+    alert(msg)
+    throw new Error(msg)
+  }
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`)
+    const err = await res.json().catch(() => ({ detail: `API error: ${res.status}` }))
+    throw new Error(err.detail || `API error: ${res.status}`)
   }
   return res.json()
 }
@@ -106,6 +118,7 @@ export interface DashboardData {
 
 export interface ProfessionalProject {
   id: number
+  version: number
   dept: string
   name: string
   goal: string
@@ -121,6 +134,7 @@ export interface ProfessionalProject {
 
 export interface ITProject {
   id: number
+  version: number
   main: string
   sub: string
   goal: string
@@ -138,6 +152,7 @@ export interface ITProject {
 
 export interface Employee {
   id: number
+  version: number
   name: string
   post: string
   dept: string
@@ -210,6 +225,7 @@ export interface FinanceIndicator {
 
 export interface FinanceBudgetItem {
   id: number
+  version: number
   cat: string
   department: string
   m1: string | null
@@ -236,6 +252,7 @@ export interface TimelinePhase {
 
 export interface ReductionItem {
   id: number
+  version: number
   section: string
   subject: string
   prev: number
@@ -299,6 +316,7 @@ export interface LoginResponse {
 
 export interface UserItem {
   id: number
+  version: number
   username: string
   display_name: string
   is_active: number
@@ -308,6 +326,7 @@ export interface UserItem {
 
 export interface RoleItem {
   id: number
+  version: number
   code: string
   name: string
   description: string | null
@@ -326,6 +345,8 @@ export const authApi = {
   login: (username: string, password: string) =>
     sendAPI<LoginResponse>('POST', '/auth/login', { username, password }),
   getMe: () => fetchAPI<{ id: number; username: string; permissions: string[] }>('/auth/me'),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    sendAPI<{ message: string }>('PUT', '/auth/change-password', { old_password: oldPassword, new_password: newPassword }),
 }
 
 export const rbacApi = {
