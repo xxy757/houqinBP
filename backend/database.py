@@ -88,6 +88,24 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
         CREATE INDEX IF NOT EXISTS idx_audit_resource ON audit_logs(resource);
+
+        CREATE TABLE IF NOT EXISTS linkage_mappings (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            proj_id             INTEGER,
+            it_ids              TEXT DEFAULT '[]',
+            hr_change_desc      TEXT DEFAULT '',
+            hr_headcount        INTEGER DEFAULT 0,
+            hr_posts            TEXT DEFAULT '',
+            hr_month_start      INTEGER,
+            hr_month_end        INTEGER,
+            fin_budget_impact   REAL DEFAULT 0,
+            fin_subjects        TEXT DEFAULT '[]',
+            fin_description     TEXT DEFAULT '',
+            responsible_person  TEXT DEFAULT '',
+            created_at          TEXT DEFAULT (datetime('now','localtime')),
+            updated_at          TEXT DEFAULT (datetime('now','localtime')),
+            version             INTEGER DEFAULT 1
+        );
     ''')
     conn.commit()
 
@@ -134,7 +152,10 @@ def init_db():
                 ('users:read', '查看用户', '查看系统用户列表'),
                 ('users:write', '管理用户', '创建、编辑、删除系统用户'),
                 ('roles:read', '查看角色', '查看角色列表'),
-                ('roles:write', '管理角色', '创建、编辑、删除角色及分配权限');
+                ('roles:write', '管理角色', '创建、编辑、删除角色及分配权限'),
+                ('linkage:read', '查看联动配置', '查看四维联动映射数据'),
+                ('linkage:write', '编辑联动配置', '创建和修改联动映射'),
+                ('linkage:delete', '删除联动配置', '删除联动映射');
 
             INSERT OR IGNORE INTO roles (code, name, description) VALUES
                 ('admin', '系统管理员', '拥有全部权限'),
@@ -155,7 +176,7 @@ def init_db():
 
             INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
                 SELECT 2, id FROM permissions WHERE code NOT IN
-                ('projects:delete', 'employees:delete', 'finance:delete', 'users:read', 'users:write', 'roles:read', 'roles:write', 'audits:read');
+                ('projects:delete', 'employees:delete', 'finance:delete', 'linkage:delete', 'users:read', 'users:write', 'roles:read', 'roles:write', 'audits:read');
 
             INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
                 SELECT 3, id FROM permissions WHERE code LIKE '%:read';

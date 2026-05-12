@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from logger import start_logger, stop_logger
-from routes import professional, it_projects, hr, finance, dashboard, auth, rbac, audit
+from routes import professional, it_projects, hr, finance, dashboard, auth, rbac, audit, linkage
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.include_router(finance.router, prefix="/api/finance", tags=["财务管控"])
 app.include_router(auth.router, prefix="/api", tags=["认证"])
 app.include_router(rbac.router, prefix="/api", tags=["权限管理"])
 app.include_router(audit.router, prefix="/api", tags=["审计日志"])
+app.include_router(linkage.router, prefix="/api/linkage", tags=["联动配置"])
 
 
 @app.get("/api/health")

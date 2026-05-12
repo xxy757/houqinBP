@@ -237,6 +237,47 @@ export interface ReductionItem {
   plan: string
 }
 
+export interface LinkMapping {
+  id: number
+  proj_id: number | null
+  proj_name: string | null
+  it_ids: number[]
+  it_names: string[]
+  hr_change_desc: string
+  hr_headcount: number
+  hr_posts: string
+  hr_month_start: number | null
+  hr_month_end: number | null
+  fin_budget_impact: number
+  fin_subjects: string[]
+  fin_description: string
+  responsible_person: string
+  created_at: string
+  updated_at: string
+  version: number
+}
+
+export interface LinkageSummary {
+  total_mappings: number
+  total_hr_impact: number
+  total_budget_impact: number
+  by_dimension: {
+    hr_impact: { increase: number; decrease: number; net: number }
+    budget_impact: { increase: number; decrease: number; net: number }
+  }
+  affected_subjects: { subject: string; amount: number }[]
+  pro_coverage: { total: number; mapped: number; unmapped: number }
+  it_projects_linked: number
+}
+
+export interface ImpactSimulation {
+  proj_id: number | null
+  proj_name: string
+  hr_change: number
+  per_person_cost: number
+  total_impact: number
+}
+
 export const api = {
   getDashboard: () => fetchAPI<DashboardData>('/dashboard'),
 
@@ -278,6 +319,18 @@ export const api = {
     sendAPI<{ message: string }>('PUT', `/finance/reduction/${id}`, data),
   deleteFinanceReduction: (id: number) =>
     sendAPI<{ message: string }>('DELETE', `/finance/reduction/${id}`),
+
+  getLinkageMappings: () => fetchAPI<LinkMapping[]>('/linkage/mappings'),
+  getLinkageMapping: (id: number) => fetchAPI<LinkMapping>(`/linkage/mappings/${id}`),
+  createLinkageMapping: (data: Record<string, unknown>) =>
+    sendAPI<{ id: number; message: string }>('POST', '/linkage/mappings', data),
+  updateLinkageMapping: (id: number, data: Record<string, unknown>) =>
+    sendAPI<{ message: string }>('PUT', `/linkage/mappings/${id}`, data),
+  deleteLinkageMapping: (id: number) =>
+    sendAPI<{ message: string }>('DELETE', `/linkage/mappings/${id}`),
+  getLinkageSummary: () => fetchAPI<LinkageSummary>('/linkage/summary'),
+  simulateImpact: (data: Record<string, unknown>) =>
+    sendAPI<ImpactSimulation>('POST', '/linkage/impact-simulate', data),
 }
 
 interface LoginResponse {
