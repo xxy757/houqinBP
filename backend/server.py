@@ -20,6 +20,26 @@ app.add_middleware(
 )
 
 
+def run_migrations():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(professional_project_phases)")
+    cols = [r[1] for r in cur.fetchall()]
+    if 'status' not in cols:
+        cur.execute("ALTER TABLE professional_project_phases ADD COLUMN status TEXT DEFAULT 'doing'")
+    cur.execute("PRAGMA table_info(it_project_phases)")
+    cols = [r[1] for r in cur.fetchall()]
+    if 'status' not in cols:
+        cur.execute("ALTER TABLE it_project_phases ADD COLUMN status TEXT DEFAULT 'doing'")
+    conn.commit()
+    conn.close()
+
+
+@app.on_event('startup')
+def startup():
+    run_migrations()
+
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -63,13 +83,26 @@ def dashboard():
         FROM professional_projects ORDER BY id LIMIT 8
     """)
 
-    # Calculate progress for each project using phases
+    # Calculate progress and status for each project using phases
     for p in top_proj:
-        phase_names = [r[0] for r in cur.execute(
-            'SELECT phase_name FROM professional_project_phases WHERE project_id = ? ORDER BY phase_order',
-            (p['id'],)
-        ).fetchall()]
-        p['phases'] = [{'name': n} for n in phase_names]
+        phases = dict_rows(cur, """
+            SELECT phase_name, status FROM professional_project_phases
+            WHERE project_id = ? ORDER BY phase_order
+        """, (p['id'],))
+        p['phases'] = [{'name': ph['phase_name']} for ph in phases]
+        total = len(phases) if phases else 1
+        done = sum(1 for ph in phases if ph['status'] == 'done')
+        doing_count = sum(1 for ph in phases if ph['status'] == 'doing')
+        paused_count = sum(1 for ph in phases if ph['status'] == 'paused')
+        p['progress'] = round(done / total * 100)
+        if total == done:
+            p['status'] = 'done'
+        elif paused_count > 0:
+            p['status'] = 'paused'
+        elif doing_count > 0 or done > 0:
+            p['status'] = 'doing'
+        else:
+            p['status'] = 'todo'
 
     # Top IT projects
     top_it = dict_rows(cur, """
@@ -77,6 +110,25 @@ def dashboard():
                start_date, end_date, duration, solve, difficulty
         FROM it_projects ORDER BY id LIMIT 8
     """)
+
+    for p in top_it:
+        phases = dict_rows(cur, """
+            SELECT phase_name, status FROM it_project_phases
+            WHERE project_id = ? ORDER BY phase_order
+        """, (p['id'],))
+        total = len(phases) if phases else 1
+        done = sum(1 for ph in phases if ph['status'] == 'done')
+        doing_count = sum(1 for ph in phases if ph['status'] == 'doing')
+        paused_count = sum(1 for ph in phases if ph['status'] == 'paused')
+        p['progress'] = round(done / total * 100)
+        if total == done:
+            p['status'] = 'done'
+        elif paused_count > 0:
+            p['status'] = 'paused'
+        elif doing_count > 0 or done > 0:
+            p['status'] = 'doing'
+        else:
+            p['status'] = 'todo'
 
     # Department distribution from professional projects
     dept_dist = dict_rows(cur, """
@@ -221,10 +273,12 @@ def hr_distributions():
 
     today = date.today()
 
+    total_emp = cur.execute('SELECT COUNT(*) FROM employees').fetchone()[0]
+
     # Education
     edu = dict_rows(cur, """
         SELECT education as label, COUNT(*) as count,
-               ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM employees WHERE education IS NOT NULL), 1) as rate
+               ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM employees WHERE education IS NOT NULL), 1) || '%' as rate
         FROM employees WHERE education IS NOT NULL
         GROUP BY education ORDER BY count DESC
     """)
@@ -240,7 +294,14 @@ def hr_distributions():
         elif a <= 40: age_groups['36-40'] += 1
         else: age_groups['40+'] += 1
     total_age = len(age_all) or 1
-    age_dist = [{'label': k, 'count': v, 'rate': f"{round(v / total_age * 100)}%"} for k, v in age_groups.items()]
+    age_dist = []
+    for k, v in age_groups.items():
+        pct = v / total_age * 100
+        if pct - int(pct) >= 0.5:
+            rate = int(pct) + 1
+        else:
+            rate = int(pct)
+        age_dist.append({'label': k, 'count': v, 'rate': f'{rate}%'})
 
     # Gender
     gender = dict_rows(cur, """
@@ -260,7 +321,7 @@ def hr_distributions():
     avg_service = round(sum(services) / len(services), 2) if services else 0
 
     edu_above = cur.execute("SELECT COUNT(*) FROM employees WHERE education IN ('本科','硕士','博士')").fetchone()[0]
-    above_pct = round(edu_above / total_age * 100) if total_age else 0
+    above_pct = round(edu_above / total_emp * 100) if total_emp else 0
 
     # Post distribution (for HR department breakdown)
     post_dist = dict_rows(cur, """
@@ -273,7 +334,7 @@ def hr_distributions():
     conn.close()
     return {
         'summary': {
-            'total': total_age,
+            'total': total_emp,
             'avg_age': avg_age,
             'avg_service': avg_service,
             'above_bachelor_pct': above_pct,

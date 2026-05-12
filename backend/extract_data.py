@@ -23,6 +23,9 @@ def clean(v):
         if 40000 < v < 70000:
             return (EXCEL_DATE_EPOCH + datetime.timedelta(days=int(v))).strftime('%Y-%m-%d')
         return v
+    t = str(type(v))
+    if 'openpyxl' in t and 'Formula' in t:
+        return None
     return str(v)
 
 def create_db():
@@ -56,6 +59,7 @@ def create_db():
             phase_order INTEGER,
             phase_name TEXT,
             phase_content TEXT,
+            status TEXT DEFAULT 'doing',
             FOREIGN KEY (project_id) REFERENCES professional_projects(id)
         );
 
@@ -85,6 +89,7 @@ def create_db():
             phase_order INTEGER,
             phase_name TEXT,
             phase_content TEXT,
+            status TEXT DEFAULT 'doing',
             FOREIGN KEY (project_id) REFERENCES it_projects(id)
         );
 
@@ -214,7 +219,7 @@ def create_db():
 
 def extract_professional(conn, cur):
     """提取后勤部-专业.xlsx"""
-    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部-专业.xlsx'))
+    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部-专业.xlsx'), data_only=True)
     ws = wb[wb.sheetnames[0]]
 
     projects = []
@@ -289,7 +294,7 @@ def extract_professional(conn, cur):
 
 def extract_it_projects(conn, cur):
     """提取后勤部-信息化.xlsx"""
-    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部-信息化.xlsx'))
+    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部-信息化.xlsx'), data_only=True)
     ws = wb[wb.sheetnames[0]]
 
     projects = []
@@ -357,7 +362,7 @@ def extract_it_projects(conn, cur):
 
 def extract_hr(conn, cur):
     """提取后勤部-人力.xlsx"""
-    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部-人力.xlsx'))
+    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部-人力.xlsx'), data_only=True)
 
     # Sheet "人员调整计划": 完整名册 (71行, 86列)
     # 列: 1=编号,2=姓名,3=处级名称,4=部门号码,5=部门名称,6=职务,
@@ -387,6 +392,11 @@ def extract_hr(conn, cur):
         professional_match = vals[28] if len(vals) > 28 else None
         age = vals[33] if len(vals) > 33 else None
         ethnicity = vals[34] if len(vals) > 34 else None
+
+        if education is not None:
+            edu_str = str(education).strip()
+            if edu_str in ('985', '211', '一本', '二本', '双一流'):
+                education = '本科'
 
         cur.execute('''
             INSERT INTO employees (employee_id, name, post, department_name, status,
@@ -458,25 +468,28 @@ def extract_hr(conn, cur):
 
 def extract_finance(conn, cur):
     """提取后勤部-财务.xlsx"""
-    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部-财务.xlsx'))
+    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部-财务.xlsx'), data_only=True)
 
     # Sheet 1: 26-27年预算 (列: 0=科目, 1-12=月, 13=合计, 14=预算数)
     ws = wb['26-27年预算']
     for i, row in enumerate(ws.iter_rows(min_row=3, max_row=ws.max_row, values_only=True)):
-        vals = [clean(c) for c in row]
-        if vals[0] is None or '合计' in str(vals[0]):
+        vals = list(row)
+        category = str(vals[0]).strip() if vals[0] is not None else None
+        if category is None or '合计' in category:
             continue
         msv = [str(vals[j]) if len(vals) > j and vals[j] is not None else None for j in range(1, 13)]
+        total_val = vals[13] if len(vals) > 13 and vals[13] is not None else None
+        budget_val = vals[14] if len(vals) > 14 and vals[14] is not None else None
         cur.execute('''
             INSERT INTO financial_budget (category, department, m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12, total, budget_num)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ''', (
-            str(vals[0]) if vals[0] else None,
+            category,
             '后勤部',
             msv[0], msv[1], msv[2], msv[3], msv[4], msv[5],
             msv[6], msv[7], msv[8], msv[9], msv[10], msv[11],
-            str(vals[13]) if len(vals) > 13 and vals[13] else None,
-            str(vals[14]) if len(vals) > 14 and vals[14] else None
+            str(total_val) if total_val is not None else None,
+            str(budget_val) if budget_val is not None else None
         ))
     conn.commit()
     cur.execute("SELECT COUNT(*) FROM financial_budget")
@@ -534,24 +547,29 @@ def extract_finance(conn, cur):
     ws4 = wb['降费方案明细']
     current_section = ''
     for row in ws4.iter_rows(min_row=1, max_row=ws4.max_row, values_only=True):
-        vals = [clean(c) for c in row]
-        if vals[0] and '人员' in str(vals[0]) or (vals[0] and '运营' in str(vals[0])) or (vals[0] and '项目' in str(vals[0])) or (vals[0] and '其他' in str(vals[0])):
-            current_section = str(vals[0])
+        vals = list(row)
+        s0 = str(vals[0]).strip() if vals[0] is not None else ''
+        if s0 and any(c in s0 and '、' in s0 for c in '一二三四五六七八九十'):
+            current_section = s0
             continue
-        if vals[0] and vals[1] and vals[2] and '费用科目' not in str(vals[0]):
+        if vals[0] is not None and vals[1] is not None and vals[2] is not None and '费用科目' not in str(vals[0]):
+            v1 = vals[1]
+            v2 = vals[2]
+            year_2025 = float(v1) if v1 is not None and isinstance(v1, (int, float)) else None
+            year_budget = float(v2) if v2 is not None and isinstance(v2, (int, float)) else None
             cur.execute('''
                 INSERT INTO financial_reduction (section, cost_subject, year_2025_actual, year_budget, change_rate, detail_item, category, priority, reduction_plan)
                 VALUES (?,?,?,?,?,?,?,?,?)
             ''', (
                 current_section,
                 str(vals[0]),
-                float(vals[1]) if vals[1] and str(vals[1]).replace('.','').replace('-','').isdigit() else None,
-                float(vals[2]) if vals[2] and str(vals[2]).replace('.','').replace('-','').isdigit() else None,
-                str(vals[3]) if vals[3] else None,
-                str(vals[4]) if len(vals)>4 and vals[4] else None,
-                str(vals[5]) if len(vals)>5 and vals[5] else None,
-                str(vals[6]) if len(vals)>6 and vals[6] else None,
-                str(vals[7]) if len(vals)>7 and vals[7] else None
+                year_2025,
+                year_budget,
+                str(vals[3]) if len(vals) > 3 and vals[3] else None,
+                str(vals[4]) if len(vals) > 4 and vals[4] else None,
+                str(vals[5]) if len(vals) > 5 and vals[5] else None,
+                str(vals[6]) if len(vals) > 6 and vals[6] else None,
+                str(vals[7]) if len(vals) > 7 and vals[7] else None
             ))
     conn.commit()
     cur.execute("SELECT COUNT(*) FROM financial_reduction")
@@ -559,7 +577,7 @@ def extract_finance(conn, cur):
 
 def extract_department_items(conn, cur):
     """提取后勤部部门重点事项.xlsx"""
-    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部部门重点事项.xlsx'))
+    wb = load_workbook(os.path.join(EXCEL_DIR, '后勤部部门重点事项.xlsx'), data_only=True)
     ws = wb['后勤部重点事项']
 
     for i, row in enumerate(ws.iter_rows(min_row=4, max_row=ws.max_row, values_only=True)):
