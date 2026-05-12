@@ -17,3 +17,5 @@ venv/
 
 # Node
 node_modules/
+temp.xlsx
+~$*

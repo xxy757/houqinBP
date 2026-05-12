@@ -11,7 +11,7 @@ export interface ProfessionalProject {
   pStat: PhaseStatus[]
 }
 
-export type PhaseStatus = 'done' | 'doing' | 'todo' | 'plan'
+export type PhaseStatus = 'done' | 'doing' | 'todo' | 'plan' | 'paused'
 
 export interface ITProject {
   id: number

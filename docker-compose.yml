@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # 后端 API 服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: houqin-backend
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend/data:/app/data
+    restart: always
+
+  # 前端 + Nginx 反向代理
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: houqin-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always

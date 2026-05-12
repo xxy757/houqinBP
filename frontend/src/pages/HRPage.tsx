@@ -11,6 +11,11 @@ const hrTabs = [
 
 type HRTabKey = 'overview' | 'plan' | 'change'
 
+const emptyEmployee = {
+  name: '', post: '', department_name: '', education: '',
+  age: undefined as number | undefined, entry_date: '', professional_match: '', gender: '', status: '在岗',
+}
+
 export default function HRPage() {
   const [activeTab, setActiveTab] = useState<HRTabKey>('overview')
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -18,8 +23,10 @@ export default function HRPage() {
   const [planKPI, setPlanKPI] = useState<HRPlanItem[]>([])
   const [changes, setChanges] = useState<HRChangeItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<Record<string, unknown> | null>(null)
+  const [form, setForm] = useState<Record<string, unknown>>({ ...emptyEmployee })
 
-  useEffect(() => {
+  const load = () => {
     Promise.all([
       api.getEmployees(1, 200),
       api.getHRDistributions(),
@@ -31,7 +38,67 @@ export default function HRPage() {
       setPlanKPI(planRes)
       setChanges(changeRes)
     }).finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
+
+  const openCreate = () => {
+    setForm({ ...emptyEmployee })
+    setEditing({ _new: true })
+  }
+
+  const openEdit = (emp: Employee) => {
+    setForm({
+      name: emp.name || '',
+      post: emp.post || '',
+      department_name: emp.dept || '',
+      education: emp.edu || '',
+      age: emp.age || undefined,
+      entry_date: '',
+      professional_match: emp.match || '',
+      gender: emp.gender || '',
+      status: '在岗',
+    })
+    setEditing({ _id: emp.id })
+  }
+
+  const handleSave = async () => {
+    const data = { ...form }
+    if (editing?._new) {
+      await api.createEmployee(data)
+    } else if (editing?._id) {
+      await api.updateEmployee(editing._id as number, data)
+    }
+    setEditing(null)
+    load()
+  }
+
+  const handleDelete = async (id: number) => {
+    if (confirm('确认删除此员工？相关月度状态记录也将一并删除。')) {
+      await api.deleteEmployee(id)
+      load()
+    }
+  }
+
+  const setF = (k: string, v: unknown) => setForm({ ...form, [k]: v })
+
+  const STATUS_OPTIONS = ['在岗', '新增', '调岗', '优化']
+  const statusColor: Record<string, string> = {
+    '在岗': 'var(--g400)',
+    '新增': 'var(--pro)',
+    '调岗': 'var(--it)',
+    '优化': 'var(--fin)',
+  }
+
+  const handleMonthChange = async (name: string, month: number, status: string) => {
+    const key = `m${month}` as keyof HRChangeItem
+    setChanges(prev => prev.map(c => c.name === name ? { ...c, [key]: status } : c))
+    try {
+      await api.updateMonthlyStatus(name, month, status)
+    } catch {
+      load()
+    }
+  }
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--g500)' }}>加载中...</div>
 
@@ -107,12 +174,56 @@ export default function HRPage() {
             </Section>
           </div>
 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, marginTop: 12 }}>
+            <button className="btn" onClick={openCreate}>➕ 新增员工</button>
+          </div>
+
+          {editing && (
+            <Section title={editing._new ? '新增员工' : '编辑员工'} actions={
+              <div>
+                <button className="btn" onClick={handleSave} style={{ marginRight: 8 }}>💾 保存</button>
+                <button className="btn btn-o" onClick={() => setEditing(null)}>取消</button>
+              </div>
+            }>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: 16 }}>
+                {[
+                  ['name', '姓名'],
+                  ['post', '职务'],
+                  ['department_name', '部门'],
+                  ['education', '学历'],
+                  ['professional_match', '专业匹配'],
+                  ['gender', '性别'],
+                  ['status', '状态'],
+                ].map(([k, label]) => (
+                  <div key={k}>
+                    <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>{label}</div>
+                    <input
+                      value={form[k] as string || ''}
+                      onChange={e => setF(k, e.target.value)}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                    />
+                  </div>
+                ))}
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>年龄</div>
+                  <input
+                    type="number"
+                    value={form.age as number || ''}
+                    onChange={e => setF('age', parseInt(e.target.value) || undefined)}
+                    style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                  />
+                </div>
+              </div>
+            </Section>
+          )}
+
           <Section title="📋 人员名册 (来源: 后勤部-人力.xlsx)" badge={`${employees.length}人`}>
             <table>
               <thead>
                 <tr>
                   <th>姓名</th><th>职务</th><th>部门</th><th>学历</th>
                   <th className="t-c">年龄</th><th className="t-c">司龄(年)</th><th>专业匹配</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,6 +231,10 @@ export default function HRPage() {
                   <tr key={p.id}>
                     <td>{p.name}</td><td>{p.post}</td><td>{p.dept}</td><td>{p.edu}</td>
                     <td className="t-c">{p.age}</td><td className="t-c">{p.service}</td><td>{p.match || '-'}</td>
+                    <td>
+                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEdit(p)}>✏️</button>
+                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDelete(p.id)}>🗑️</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -161,26 +276,60 @@ export default function HRPage() {
 
       {activeTab === 'change' && (
         <div className="page-enter">
-          <Section title="🔄 人员调整月度轨迹 (来源: 后勤部-人力.xlsx)" badge="人员调整计划">
-            <table>
-              <thead>
-                <tr>
-                  <th>姓名</th><th>部门</th><th>职务</th>
-                  <th>4月</th><th>5月</th><th>6月</th><th>7月</th><th>8月</th>
-                </tr>
-              </thead>
-              <tbody>
-                {changes.map((p) => (
-                  <tr key={p.name}>
-                    <td>{p.name}</td><td>{p.dept}</td><td>{p.post}</td>
-                    <td>{p.m4}</td><td>{p.m5}</td><td>{p.m6}</td><td>{p.m7}</td><td>{p.m8}</td>
+          <Section title="🔄 人员调整月度轨迹 (来源: 后勤部-人力.xlsx)" badge={`${changes.length}人`}>
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ position: 'sticky', left: 0, background: 'var(--g50)', zIndex: 1, minWidth: 60 }}>姓名</th>
+                    <th>部门</th>
+                    <th>职务</th>
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <th key={i} className="t-c" style={{ minWidth: 70 }}>{i + 1}月</th>
+                    ))}
                   </tr>
-                ))}
-                {changes.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--g500)', padding: 20 }}>暂无人员调整记录</td></tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {changes.map((p) => (
+                    <tr key={p.name}>
+                      <td style={{ position: 'sticky', left: 0, background: 'var(--g50)', fontWeight: 500, whiteSpace: 'nowrap' }}>{p.name}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{p.dept}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{p.post}</td>
+                      {Array.from({ length: 12 }, (_, i) => {
+                        const mk = `m${i + 1}` as keyof HRChangeItem
+                        const val = p[mk] as string
+                        return (
+                          <td key={i} className="t-c" style={{ padding: 2 }}>
+                            <select
+                              value={val}
+                              onChange={e => handleMonthChange(p.name, i + 1, e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '2px 4px',
+                                border: '1px solid var(--g200)',
+                                borderRadius: 4,
+                                fontSize: 12,
+                                color: statusColor[val] || 'var(--g500)',
+                                fontWeight: val !== '在岗' ? 600 : 400,
+                                background: val !== '在岗' ? `${statusColor[val]}10` : '#fff',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {STATUS_OPTIONS.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                  {changes.length === 0 && (
+                    <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--g500)', padding: 20 }}>暂无人员调整记录</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Section>
         </div>
       )}

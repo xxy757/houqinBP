@@ -3,6 +3,7 @@ import ProgressBar from '../components/ProgressBar'
 import Section from '../components/Section'
 import StatusTag from '../components/StatusTag'
 import { api, type DashboardData, type TopProject, type TopITProject, type DeptDistItem, type FinanceCatItem } from '../services/api'
+import type { PhaseStatus, ITStatus } from '../types'
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -16,13 +17,6 @@ export default function DashboardPage() {
   if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--fin)' }}>数据加载失败</div>
 
   const { kpi, top_projects, top_it_projects, dept_distribution, finance_categories } = data
-
-  // Derive status for IT projects from their solve text
-  function getITStatus(p: TopITProject): 'done' | 'doing' | 'plan' {
-    if (p.solve?.includes('已完成')) return 'done'
-    if (p.solve?.includes('1.')) return 'doing'
-    return 'plan'
-  }
 
   return (
     <div>
@@ -58,7 +52,7 @@ export default function DashboardPage() {
           <table>
             <thead>
               <tr>
-                <th>序号</th><th>项目名称</th><th>部门</th><th>周期</th><th>进度</th>
+                <th>序号</th><th>项目名称</th><th>部门</th><th>周期</th><th>进度</th><th>状态</th>
               </tr>
             </thead>
             <tbody>
@@ -68,7 +62,8 @@ export default function DashboardPage() {
                   <td>{p.name}</td>
                   <td><span className="dept-tag">{p.department}</span></td>
                   <td>{p.duration}</td>
-                  <td><ProgressBar percent={p.phases?.length ? Math.round(20 / Math.max(p.phase_count, 1) * 100) : 0} /></td>
+                  <td><ProgressBar percent={p.progress} /></td>
+                  <td><StatusTag status={p.status as PhaseStatus} /></td>
                 </tr>
               ))}
             </tbody>
@@ -79,7 +74,7 @@ export default function DashboardPage() {
           <table>
             <thead>
               <tr>
-                <th>序号</th><th>子项目</th><th>一级项目</th><th>周期</th><th>状态</th>
+                <th>序号</th><th>子项目</th><th>一级项目</th><th>周期</th><th>进度</th><th>状态</th>
               </tr>
             </thead>
             <tbody>
@@ -89,7 +84,8 @@ export default function DashboardPage() {
                   <td>{p.sub}</td>
                   <td>{p.main}</td>
                   <td>{p.duration}</td>
-                  <td><StatusTag status={getITStatus(p)} /></td>
+                  <td><ProgressBar percent={p.progress} /></td>
+                  <td><StatusTag status={p.status as PhaseStatus} /></td>
                 </tr>
               ))}
             </tbody>

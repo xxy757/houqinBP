@@ -6,6 +6,18 @@ async function fetchAPI<T>(path: string): Promise<T> {
   return res.json()
 }
 
+async function sendAPI<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+
 export interface DashboardKPI {
   proj_count: number
   it_count: number
@@ -28,6 +40,8 @@ export interface TopProject {
   duration: string
   phase_count: number
   phases: { name: string }[]
+  progress: number
+  status: string
 }
 
 export interface TopITProject {
@@ -41,6 +55,8 @@ export interface TopITProject {
   duration: string
   solve: string
   difficulty: string
+  progress: number
+  status: string
 }
 
 export interface DeptDistItem {
@@ -143,11 +159,18 @@ export interface HRChangeItem {
   name: string
   dept: string
   post: string
+  m1: string
+  m2: string
+  m3: string
   m4: string
   m5: string
   m6: string
   m7: string
   m8: string
+  m9: string
+  m10: string
+  m11: string
+  m12: string
 }
 
 export interface FinanceIndicator {
@@ -201,15 +224,40 @@ export interface ReductionItem {
 
 export const api = {
   getDashboard: () => fetchAPI<DashboardData>('/dashboard'),
+
   getProfessionalProjects: () => fetchAPI<ProfessionalProject[]>('/professional-projects'),
   getProfessionalProjectDetail: (id: number) => fetchAPI<ProfessionalProject>(`/professional-projects/${id}`),
+  createProfessionalProject: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/professional-projects', data),
+  updateProfessionalProject: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/professional-projects/${id}`, data),
+  deleteProfessionalProject: (id: number) => sendAPI<{ message: string }>('DELETE', `/professional-projects/${id}`),
+
   getITProjects: () => fetchAPI<ITProject[]>('/it-projects'),
+  createITProject: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/it-projects', data),
+  updateITProject: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/it-projects/${id}`, data),
+  deleteITProject: (id: number) => sendAPI<{ message: string }>('DELETE', `/it-projects/${id}`),
+
   getEmployees: (page = 1, pageSize = 100) => fetchAPI<EmployeesResponse>(`/hr/employees?page=${page}&page_size=${pageSize}`),
+  createEmployee: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/hr/employees', data),
+  updateEmployee: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/hr/employees/${id}`, data),
+  deleteEmployee: (id: number) => sendAPI<{ message: string }>('DELETE', `/hr/employees/${id}`),
+
   getHRDistributions: () => fetchAPI<HRDistributions>('/hr/distributions'),
   getHRPlanKPI: () => fetchAPI<HRPlanItem[]>('/hr/plan-kpi'),
   getHRMonthlyChanges: () => fetchAPI<HRChangeItem[]>('/hr/monthly-changes'),
+  updateMonthlyStatus: (employeeName: string, month: number, status: string) =>
+    sendAPI<{ message: string }>('PUT', '/hr/monthly-status', { employee_name: employeeName, month, status }),
+
   getFinanceIndicators: () => fetchAPI<FinanceIndicator>('/finance/indicators'),
+
   getFinanceBudget: () => fetchAPI<FinanceBudgetItem[]>('/finance/budget'),
+  createFinanceBudget: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/finance/budget', data),
+  updateFinanceBudget: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/finance/budget/${id}`, data),
+  deleteFinanceBudget: (id: number) => sendAPI<{ message: string }>('DELETE', `/finance/budget/${id}`),
+
   getFinanceTimeline: () => fetchAPI<TimelinePhase[]>('/finance/timeline'),
+
   getFinanceReduction: () => fetchAPI<ReductionItem[]>('/finance/reduction'),
+  createFinanceReduction: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/finance/reduction', data),
+  updateFinanceReduction: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/finance/reduction/${id}`, data),
+  deleteFinanceReduction: (id: number) => sendAPI<{ message: string }>('DELETE', `/finance/reduction/${id}`),
 }

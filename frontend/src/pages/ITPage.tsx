@@ -9,13 +9,64 @@ function getStatus(p: ITProject): 'done' | 'doing' | 'plan' {
   return 'plan'
 }
 
+const emptyForm = {
+  category: '', name: '', goal: '', context: '', deliverable: '',
+  owner: '', start_date: '', end_date: '', duration: '', difficulty: '', solve: '', phase_count: 0,
+}
+
 export default function ITPage() {
   const [projects, setProjects] = useState<ITProject[]>([])
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<Record<string, unknown> | null>(null)
+  const [form, setForm] = useState<Record<string, unknown>>({ ...emptyForm })
 
-  useEffect(() => {
+  const load = () => {
     api.getITProjects().then(setProjects).finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
+
+  const openCreate = () => {
+    setForm({ ...emptyForm })
+    setEditing({ _new: true })
+  }
+
+  const openEdit = (p: ITProject) => {
+    setForm({
+      category: p.main || '',
+      name: p.sub || '',
+      goal: p.goal || '',
+      context: p.context || '',
+      deliverable: p.deliverable || '',
+      owner: p.person || '',
+      start_date: p.start_date || '',
+      end_date: p.end_date || '',
+      duration: p.period || '',
+      difficulty: p.issue || '',
+      solve: p.solve || '',
+      phase_count: p.phase_count || 0,
+    })
+    setEditing({ _id: p.id })
+  }
+
+  const handleSave = async () => {
+    if (editing?._new) {
+      await api.createITProject(form)
+    } else if (editing?._id) {
+      await api.updateITProject(editing._id as number, form)
+    }
+    setEditing(null)
+    load()
+  }
+
+  const handleDelete = async (id: number) => {
+    if (confirm('确认删除此信息化项目？阶段数据也将一并删除。')) {
+      await api.deleteITProject(id)
+      load()
+    }
+  }
+
+  const setF = (k: string, v: string | number) => setForm({ ...form, [k]: v })
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--g500)' }}>加载中...</div>
 
@@ -45,6 +96,53 @@ export default function ITPage() {
         </div>
       </div>
 
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button className="btn" onClick={openCreate}>➕ 新增项目</button>
+      </div>
+
+      {editing && (
+        <Section title={editing._new ? '新增信息化项目' : '编辑信息化项目'} actions={
+          <div>
+            <button className="btn" onClick={handleSave} style={{ marginRight: 8 }}>💾 保存</button>
+            <button className="btn btn-o" onClick={() => setEditing(null)}>取消</button>
+          </div>
+        }>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: 16 }}>
+            {[
+              ['name', '子项目名称'],
+              ['category', '一级项目'],
+              ['owner', '责任人'],
+              ['goal', '核心目标'],
+              ['context', '背景'],
+              ['deliverable', '交付物'],
+              ['difficulty', '实施难点'],
+              ['solve', '解决方案'],
+              ['start_date', '开始日期'],
+              ['end_date', '结束日期'],
+              ['duration', '周期'],
+            ].map(([k, label]) => (
+              <div key={k}>
+                <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>{label}</div>
+                <input
+                  value={form[k] as string || ''}
+                  onChange={e => setF(k, e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                />
+              </div>
+            ))}
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>阶段数量</div>
+              <input
+                type="number"
+                value={form.phase_count as number || 0}
+                onChange={e => setF('phase_count', parseInt(e.target.value) || 0)}
+                style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+              />
+            </div>
+          </div>
+        </Section>
+      )}
+
       <Section title="💻 信息化细化方案 (来源: 后勤部-信息化.xlsx)" badge={`${total}项 · 1 sheet`}>
         <table>
           <thead>
@@ -57,6 +155,7 @@ export default function ITPage() {
               <th style={{ width: 70 }}>状态</th>
               <th style={{ minWidth: 180 }}>实施难点</th>
               <th style={{ width: 180 }}>解决的问题</th>
+              <th style={{ width: 80 }}>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -70,6 +169,10 @@ export default function ITPage() {
                 <td><StatusTag status={getStatus(p)} /></td>
                 <td title={p.issue}>{p.issue ? p.issue.substring(0, 20) + '...' : '-'}</td>
                 <td title={p.solve}>{p.solve ? p.solve.substring(0, 20) + '...' : '-'}</td>
+                <td>
+                  <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEdit(p)}>✏️</button>
+                  <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDelete(p.id)}>🗑️</button>
+                </td>
               </tr>
             ))}
           </tbody>

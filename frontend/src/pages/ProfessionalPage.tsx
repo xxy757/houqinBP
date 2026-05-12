@@ -3,19 +3,63 @@ import Section from '../components/Section'
 import PhaseDots from '../components/PhaseDots'
 import { api, type ProfessionalProject } from '../services/api'
 
+const emptyForm = {
+  department: '', name: '', goal: '', context: '', deliverable: '',
+  person: '', start_date: '', end_date: '', duration: '', phase_count: 0,
+}
+
 export default function ProfessionalPage() {
   const [projects, setProjects] = useState<ProfessionalProject[]>([])
   const [detail, setDetail] = useState<ProfessionalProject | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<Record<string, unknown> | null>(null)
+  const [form, setForm] = useState<Record<string, unknown>>({ ...emptyForm })
 
-  useEffect(() => {
+  const load = () => {
     api.getProfessionalProjects().then(setProjects).finally(() => setLoading(false))
-  }, [])
-
-  const openDetail = async (p: ProfessionalProject) => {
-    const d = await api.getProfessionalProjectDetail(p.id)
-    setDetail(d)
   }
+
+  useEffect(() => { load() }, [])
+
+  const openCreate = () => {
+    setForm({ ...emptyForm })
+    setEditing({ _new: true })
+  }
+
+  const openEdit = (p: ProfessionalProject) => {
+    setForm({
+      department: p.dept || '',
+      name: p.name || '',
+      goal: p.goal || '',
+      context: p.context || '',
+      deliverable: p.deliverable || '',
+      person: p.person || '',
+      start_date: p.start || '',
+      end_date: p.end || '',
+      duration: p.period || '',
+      phase_count: p.phases || 0,
+    })
+    setEditing({ _id: p.id })
+  }
+
+  const handleSave = async () => {
+    if (editing?._new) {
+      await api.createProfessionalProject(form)
+    } else if (editing?._id) {
+      await api.updateProfessionalProject(editing._id as number, form)
+    }
+    setEditing(null)
+    load()
+  }
+
+  const handleDelete = async (id: number) => {
+    if (confirm('确认删除此项目？阶段数据也将一并删除。')) {
+      await api.deleteProfessionalProject(id)
+      load()
+    }
+  }
+
+  const setF = (k: string, v: string | number) => setForm({ ...form, [k]: v })
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--g500)' }}>加载中...</div>
 
@@ -44,6 +88,51 @@ export default function ProfessionalPage() {
         </div>
       </div>
 
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button className="btn" onClick={openCreate}>➕ 新增项目</button>
+      </div>
+
+      {editing && (
+        <Section title={editing._new ? '新增项目' : '编辑项目'} actions={
+          <div>
+            <button className="btn" onClick={handleSave} style={{ marginRight: 8 }}>💾 保存</button>
+            <button className="btn btn-o" onClick={() => setEditing(null)}>取消</button>
+          </div>
+        }>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: 16 }}>
+            {[
+              ['name', '项目名称'],
+              ['department', '所属部门'],
+              ['person', '责任人'],
+              ['goal', '核心目标'],
+              ['context', '背景'],
+              ['deliverable', '交付物'],
+              ['start_date', '开始日期'],
+              ['end_date', '结束日期'],
+              ['duration', '周期'],
+            ].map(([k, label]) => (
+              <div key={k}>
+                <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>{label}</div>
+                <input
+                  value={form[k] as string || ''}
+                  onChange={e => setF(k, e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                />
+              </div>
+            ))}
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>阶段数量</div>
+              <input
+                type="number"
+                value={form.phase_count as number || 0}
+                onChange={e => setF('phase_count', parseInt(e.target.value) || 0)}
+                style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+              />
+            </div>
+          </div>
+        </Section>
+      )}
+
       <Section title="📋 专业项目清单 (来源: 后勤部-专业.xlsx)" badge={`${total}项 · 1 sheet`}>
         <table>
           <thead>
@@ -57,6 +146,7 @@ export default function ProfessionalPage() {
               <th style={{ width: 80 }}>开始</th>
               <th style={{ width: 80 }}>结束</th>
               <th style={{ width: 100 }}>阶段</th>
+              <th style={{ width: 80 }}>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -77,8 +167,10 @@ export default function ProfessionalPage() {
                   <td>{p.period}</td>
                   <td>{p.start}</td>
                   <td>{p.end}</td>
-                  <td>
-                    <PhaseDots pStat={pStat} />
+                  <td><PhaseDots pStat={pStat} /></td>
+                  <td onClick={e => e.stopPropagation()}>
+                    <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEdit(p)}>✏️</button>
+                    <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDelete(p.id)}>🗑️</button>
                   </td>
                 </tr>
               )

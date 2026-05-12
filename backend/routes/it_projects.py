@@ -27,12 +27,17 @@ class ITProjectCreate(BaseModel):
 def list_it_projects():
     db = get_db()
     cur = db.cursor()
-    cur.execute("""
-        SELECT id, category, name, goal, deliverable, owner,
-               start_date, end_date, duration, difficulty, solve, phase_count
+    rows = [dict(r) for r in cur.execute("""
+        SELECT id, category as main, name as sub, goal, context, deliverable,
+               owner as person, start_date, end_date, duration as period, difficulty as issue, solve, phase_count
         FROM it_projects ORDER BY id
-    """)
-    rows = [dict(r) for r in cur.fetchall()]
+    """).fetchall()]
+    for p in rows:
+        p["phaseList"] = [dict(r) for r in cur.execute("""
+            SELECT phase_order, phase_name as name, phase_content
+            FROM it_project_phases
+            WHERE project_id = ? ORDER BY phase_order
+        """, (p["id"],)).fetchall()]
     db.close()
     return rows
 
@@ -41,20 +46,22 @@ def list_it_projects():
 def get_it_project(project_id: int):
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT * FROM it_projects WHERE id=?", (project_id,))
-    proj = cur.fetchone()
+    proj = [dict(r) for r in cur.execute("""
+        SELECT id, category as main, name as sub, goal, context, deliverable,
+               owner as person, start_date, end_date, duration as period, difficulty as issue, solve, phase_count
+        FROM it_projects WHERE id = ?
+    """, (project_id,)).fetchall()]
     if not proj:
         db.close()
         raise HTTPException(status_code=404, detail="项目不存在")
-    cur.execute("""
-        SELECT * FROM it_project_phases
-        WHERE project_id=? ORDER BY phase_order
-    """, (project_id,))
-    phases = [dict(r) for r in cur.fetchall()]
+    proj = proj[0]
+    proj["phaseList"] = [dict(r) for r in cur.execute("""
+        SELECT phase_order, phase_name as name, phase_content
+        FROM it_project_phases
+        WHERE project_id = ? ORDER BY phase_order
+    """, (project_id,)).fetchall()]
     db.close()
-    result = dict(proj)
-    result["phases"] = phases
-    return result
+    return proj
 
 
 @router.post("")

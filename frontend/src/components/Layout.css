@@ -246,7 +246,8 @@ table tbody tr:last-child td { border-bottom: none; }
 }
 .stag-done { background: #DCFCE7; color: #16A34A; }
 .stag-doing { background: #FEF3C7; color: #D97706; }
-.stag-plan { background: var(--g100); color: var(--g500); }
+.stag-paused { background: #FEE2E2; color: #DC2626; }
+.stag-todo { background: var(--g100); color: var(--g500); }
 
 /* ---- Progress Bar ---- */
 .pbar {
