@@ -1,56 +1,34 @@
-function getToken(): string | null {
-  return localStorage.getItem('token')
+function getHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {}
+  const token = localStorage.getItem('token')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return headers
 }
 
 async function fetchAPI<T>(path: string): Promise<T> {
-  const token = getToken()
-  const headers: Record<string, string> = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const res = await fetch(`/api${path}`, { headers })
-  if (res.status === 401) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    window.location.href = '/login'
-    throw new Error('Unauthorized')
-  }
+  const res = await fetch(`/api${path}`, {
+    headers: getHeaders(),
+  })
   if (!res.ok) {
-    let detail = `${res.status} ${res.statusText}`
-    try {
-      const errBody = await res.json()
-      if (errBody.detail) detail = errBody.detail
-    } catch {}
-    throw new Error(detail)
+    throw new Error(`API error: ${res.status} ${res.statusText}`)
   }
   return res.json()
 }
 
 async function sendAPI<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const token = getToken()
-  const headers: Record<string, string> = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  if (body) headers['Content-Type'] = 'application/json'
-
+  const headers = getHeaders()
+  if (body) {
+    headers['Content-Type'] = 'application/json'
+  }
   const res = await fetch(`/api${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   })
-  if (res.status === 401) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    window.location.href = '/login'
-    throw new Error('Unauthorized')
-  }
-  if (res.status === 409) {
-    const err = await res.json().catch(() => ({ detail: '数据已被其他用户修改，请刷新后重试' }))
-    const msg = err.detail || '数据冲突，请刷新后重试'
-    alert(msg)
-    throw new Error(msg)
-  }
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: `API error: ${res.status}` }))
-    throw new Error(err.detail || `API error: ${res.status}`)
+    throw new Error(`API error: ${res.status} ${res.statusText}`)
   }
   return res.json()
 }
@@ -118,7 +96,6 @@ export interface DashboardData {
 
 export interface ProfessionalProject {
   id: number
-  version: number
   dept: string
   name: string
   goal: string
@@ -134,7 +111,6 @@ export interface ProfessionalProject {
 
 export interface ITProject {
   id: number
-  version: number
   main: string
   sub: string
   goal: string
@@ -152,7 +128,6 @@ export interface ITProject {
 
 export interface Employee {
   id: number
-  version: number
   name: string
   post: string
   dept: string
@@ -225,7 +200,6 @@ export interface FinanceIndicator {
 
 export interface FinanceBudgetItem {
   id: number
-  version: number
   cat: string
   department: string
   m1: string | null
@@ -252,7 +226,6 @@ export interface TimelinePhase {
 
 export interface ReductionItem {
   id: number
-  version: number
   section: string
   subject: string
   prev: number
@@ -299,12 +272,15 @@ export const api = {
   getFinanceTimeline: () => fetchAPI<TimelinePhase[]>('/finance/timeline'),
 
   getFinanceReduction: () => fetchAPI<ReductionItem[]>('/finance/reduction'),
-  createFinanceReduction: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/finance/reduction', data),
-  updateFinanceReduction: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/finance/reduction/${id}`, data),
-  deleteFinanceReduction: (id: number) => sendAPI<{ message: string }>('DELETE', `/finance/reduction/${id}`),
+  createFinanceReduction: (data: Record<string, unknown>) =>
+    sendAPI<{ id: number; message: string }>('POST', '/finance/reduction', data),
+  updateFinanceReduction: (id: number, data: Record<string, unknown>) =>
+    sendAPI<{ message: string }>('PUT', `/finance/reduction/${id}`, data),
+  deleteFinanceReduction: (id: number) =>
+    sendAPI<{ message: string }>('DELETE', `/finance/reduction/${id}`),
 }
 
-export interface LoginResponse {
+interface LoginResponse {
   token: string
   user: {
     id: number
@@ -314,23 +290,32 @@ export interface LoginResponse {
   }
 }
 
+export const authApi = {
+  login: (username: string, password: string) =>
+    sendAPI<LoginResponse>('POST', '/auth/login', { username, password }),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    sendAPI<{ message: string }>('PUT', '/auth/change-password', {
+      old_password: oldPassword,
+      new_password: newPassword,
+    }),
+}
+
 export interface UserItem {
   id: number
-  version: number
   username: string
   display_name: string
   is_active: number
+  version: number
   created_at: string
   roles: { id: number; code: string; name: string }[]
 }
 
 export interface RoleItem {
   id: number
-  version: number
   code: string
   name: string
   description: string | null
-  created_at: string
+  version: number
   permissions: { id: number; code: string; name: string }[]
 }
 
@@ -341,28 +326,22 @@ export interface PermissionItem {
   description: string | null
 }
 
-export const authApi = {
-  login: (username: string, password: string) =>
-    sendAPI<LoginResponse>('POST', '/auth/login', { username, password }),
-  getMe: () => fetchAPI<{ id: number; username: string; permissions: string[] }>('/auth/me'),
-  changePassword: (oldPassword: string, newPassword: string) =>
-    sendAPI<{ message: string }>('PUT', '/auth/change-password', { old_password: oldPassword, new_password: newPassword }),
-}
-
 export const rbacApi = {
   getUsers: () => fetchAPI<UserItem[]>('/users'),
-  createUser: (data: { username: string; password: string; display_name: string; role_ids: number[] }) =>
+  createUser: (data: Record<string, unknown>) =>
     sendAPI<{ id: number; message: string }>('POST', '/users', data),
   updateUser: (id: number, data: Record<string, unknown>) =>
-    sendAPI<{ message: string }>('PUT', `/users/${id}`, data),
-  deleteUser: (id: number) => sendAPI<{ message: string }>('DELETE', `/users/${id}`),
+    sendAPI<{ message: string; version: number }>('PUT', `/users/${id}`, data),
+  deleteUser: (id: number) =>
+    sendAPI<{ message: string }>('DELETE', `/users/${id}`),
 
   getRoles: () => fetchAPI<RoleItem[]>('/roles'),
-  createRole: (data: { code: string; name: string; description?: string; permission_ids: number[] }) =>
+  createRole: (data: Record<string, unknown>) =>
     sendAPI<{ id: number; message: string }>('POST', '/roles', data),
   updateRole: (id: number, data: Record<string, unknown>) =>
-    sendAPI<{ message: string }>('PUT', `/roles/${id}`, data),
-  deleteRole: (id: number) => sendAPI<{ message: string }>('DELETE', `/roles/${id}`),
+    sendAPI<{ message: string; version: number }>('PUT', `/roles/${id}`, data),
+  deleteRole: (id: number) =>
+    sendAPI<{ message: string }>('DELETE', `/roles/${id}`),
 
   getPermissions: () => fetchAPI<PermissionItem[]>('/permissions'),
 }
