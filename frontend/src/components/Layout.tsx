@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { authApi } from '../services/api'
+import { IconClock, IconDashboard, IconPro, IconIT, IconHR, IconFin, IconLink, IconAdmin, IconAudit, IconUser, IconPwd } from './Icons'
 import './Layout.css'
 
 export default function Layout() {
@@ -62,43 +63,46 @@ export default function Layout() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="logo">
-          <h1>🔧 后勤部</h1>
-          <span>四项规划统筹管理系统</span>
+          <IconClock size={24} color="#60A5FA" />
+          <div>
+            <h1>后勤部</h1>
+            <span>四项规划统筹管理系统</span>
+          </div>
         </div>
         <nav>
           <NavLink to="/dash" end className={({ isActive }) => isActive ? 'on' : ''}>
-            <span className="dot dot-c1" />📊 驾驶舱总览
+            <IconDashboard size={16} />驾驶舱总览
           </NavLink>
           {hasPermission('projects:read') && (
             <>
               <NavLink to="/pro" className={({ isActive }) => isActive ? 'on' : ''}>
-                <span className="dot dot-c1" />📋 专业项目
+                <IconPro size={16} />专业项目
               </NavLink>
               <NavLink to="/it" className={({ isActive }) => isActive ? 'on' : ''}>
-                <span className="dot dot-c2" />💻 信息化方案
+                <IconIT size={16} />信息化方案
               </NavLink>
             </>
           )}
           {hasPermission('employees:read') && (
             <NavLink to="/hr" className={({ isActive }) => isActive ? 'on' : ''}>
-              <span className="dot dot-c3" />👥 人力资源
+              <IconHR size={16} />人力资源
             </NavLink>
           )}
           {hasPermission('finance:read') && (
             <NavLink to="/fin" className={({ isActive }) => isActive ? 'on' : ''}>
-              <span className="dot dot-c4" />💰 财务管控
+              <IconFin size={16} />财务管控
             </NavLink>
           )}
           <NavLink to="/link" className={({ isActive }) => isActive ? 'on' : ''}>
-            <span className="dot" style={{ background: 'transparent' }}>🔗</span>联动配置
+            <IconLink size={16} />联动配置
           </NavLink>
           {hasPermission('users:read') && (
             <>
               <NavLink to="/admin/users" className={({ isActive }) => isActive ? 'on' : ''}>
-                <span className="dot" style={{ background: '#8B5CF6' }}>🔐</span>系统管理
+                <IconAdmin size={16} />系统管理
               </NavLink>
               <NavLink to="/admin/audit" className={({ isActive }) => isActive ? 'on' : ''}>
-                <span className="dot" style={{ background: '#06B6D4' }}>📋</span>审计日志
+                <IconAudit size={16} />审计日志
               </NavLink>
             </>
           )}
@@ -108,12 +112,14 @@ export default function Layout() {
 
       <div className="main">
         <header className="topbar">
-          <h2 id="pageTitle">📊 驾驶舱总览</h2>
+          <h2 id="pageTitle">驾驶舱总览</h2>
           <div className="actions">
             <span className="date">{today}</span>
             {user && (
               <>
-                <span className="topbar-user">👤 {user.display_name}</span>
+                <span className="topbar-user">
+                  <IconUser size={14} />{user.display_name}
+                </span>
                 <button className="btn btn-o" onClick={() => setShowPwdModal(true)}>修改密码</button>
                 <button className="btn btn-o" onClick={() => { logout(); navigate('/login') }}>退出</button>
               </>

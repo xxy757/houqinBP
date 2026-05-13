@@ -12,7 +12,7 @@ export default function ProtectedRoute({ children, permission }: { children: Rea
   if (permission && !hasPermission(permission)) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <h2 style={{ color: '#DC2626', marginBottom: 8 }}>🔒 权限不足</h2>
+        <h2 style={{ color: '#DC2626', marginBottom: 8 }}>权限不足</h2>
         <p style={{ color: '#6B7280' }}>您没有访问此页面所需的权限</p>
       </div>
     )

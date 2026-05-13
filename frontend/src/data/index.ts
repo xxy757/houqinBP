@@ -121,12 +121,12 @@ export const finReduction: FinanceReductionItem[] = [
 ]
 
 export const pageTitles: Record<string, string> = {
-  dash: '📊 驾驶舱总览',
-  pro: '📋 专业项目管理',
-  it: '💻 信息化方案管理',
-  hr: '👥 人力资源管理',
-  fin: '💰 财务管控',
-  link: '🔗 四维联动配置',
+  dash: '驾驶舱总览',
+  pro: '专业项目管理',
+  it: '信息化方案管理',
+  hr: '人力资源管理',
+  fin: '财务管控',
+  link: '四维联动配置',
 }
 
 export function calcProgress(pStat: ProfessionalProject['pStat']): number {

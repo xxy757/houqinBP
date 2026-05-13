@@ -8,7 +8,7 @@ export default function ProgressBar({ percent }: ProgressBarProps) {
       <div className="pbar">
         <div className="pf" style={{ width: `${percent}%` }} />
       </div>
-      <span style={{ fontSize: 11, color: 'var(--g500)', whiteSpace: 'nowrap' }}>{percent}%</span>
+      <span style={{ fontSize: 11, color: 'var(--color-gray-500)', whiteSpace: 'nowrap' }}>{percent}%</span>
     </div>
   )
 }

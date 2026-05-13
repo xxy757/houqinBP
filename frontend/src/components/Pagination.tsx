@@ -38,7 +38,7 @@ export default function Pagination({ page, pageSize, total, pageSizeOptions = PA
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '12px 0', fontSize: 13, color: 'var(--g500)',
+      padding: '12px 0', fontSize: 13, color: 'var(--color-gray-500)',
       flexWrap: 'wrap', gap: 8,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -47,8 +47,8 @@ export default function Pagination({ page, pageSize, total, pageSizeOptions = PA
           value={pageSize}
           onChange={handlePageSizeChange}
           style={{
-            padding: '3px 6px', border: '1px solid var(--g200)', borderRadius: 4,
-            fontSize: 12, color: 'var(--g500)', cursor: 'pointer',
+            padding: '3px 6px', border: '1px solid var(--color-gray-200)', borderRadius: 4,
+            fontSize: 12, color: 'var(--color-gray-500)', cursor: 'pointer',
           }}
         >
           {pageSizeOptions.map(n => (
@@ -61,26 +61,26 @@ export default function Pagination({ page, pageSize, total, pageSizeOptions = PA
           disabled={page <= 1}
           onClick={() => onChange(page - 1, pageSize)}
           style={{
-            padding: '4px 10px', border: '1px solid var(--g200)', borderRadius: 4,
+            padding: '4px 10px', border: '1px solid var(--color-gray-200)', borderRadius: 4,
             fontSize: 12, cursor: page <= 1 ? 'default' : 'pointer',
-            background: page <= 1 ? 'var(--g50)' : '#fff',
-            color: page <= 1 ? 'var(--g300)' : 'var(--g700)',
+            background: page <= 1 ? 'var(--color-gray-50)' : '#fff',
+            color: page <= 1 ? 'var(--color-gray-300)' : 'var(--color-gray-700)',
           }}
         >
           ‹ 上一页
         </button>
         {getPageNumbers().map((p, i) =>
           typeof p === 'string' ? (
-            <span key={`dots-${i}`} style={{ padding: '4px 6px', fontSize: 12, color: 'var(--g400)' }}>...</span>
+            <span key={`dots-${i}`} style={{ padding: '4px 6px', fontSize: 12, color: 'var(--color-gray-400)' }}>...</span>
           ) : (
             <button
               key={p}
               onClick={() => onChange(p, pageSize)}
               style={{
-                padding: '4px 8px', border: '1px solid var(--g200)', borderRadius: 4,
+                padding: '4px 8px', border: '1px solid var(--color-gray-200)', borderRadius: 4,
                 fontSize: 12, cursor: 'pointer', minWidth: 32,
-                background: p === page ? 'var(--pro)' : '#fff',
-                color: p === page ? '#fff' : 'var(--g700)',
+                background: p === page ? 'var(--color-primary)' : '#fff',
+                color: p === page ? '#fff' : 'var(--color-gray-700)',
                 fontWeight: p === page ? 600 : 400,
               }}
             >
@@ -92,10 +92,10 @@ export default function Pagination({ page, pageSize, total, pageSizeOptions = PA
           disabled={page >= totalPages}
           onClick={() => onChange(page + 1, pageSize)}
           style={{
-            padding: '4px 10px', border: '1px solid var(--g200)', borderRadius: 4,
+            padding: '4px 10px', border: '1px solid var(--color-gray-200)', borderRadius: 4,
             fontSize: 12, cursor: page >= totalPages ? 'default' : 'pointer',
-            background: page >= totalPages ? 'var(--g50)' : '#fff',
-            color: page >= totalPages ? 'var(--g300)' : 'var(--g700)',
+            background: page >= totalPages ? 'var(--color-gray-50)' : '#fff',
+            color: page >= totalPages ? 'var(--color-gray-300)' : 'var(--color-gray-700)',
           }}
         >
           下一页 ›

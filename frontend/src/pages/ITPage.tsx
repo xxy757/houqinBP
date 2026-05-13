@@ -4,6 +4,7 @@ import StatusTag from '../components/StatusTag'
 import Pagination from '../components/Pagination'
 import SearchBar from '../components/SearchBar'
 import { api, type ITProject } from '../services/api'
+import { IconAdd, IconSave, IconEdit, IconDelete } from '../components/Icons'
 
 function getStatus(p: ITProject): 'done' | 'doing' | 'plan' {
   if (p.solve?.includes('已完成')) return 'done'
@@ -93,7 +94,7 @@ export default function ITPage() {
 
   const setF = (k: string, v: string | number) => setForm({ ...form, [k]: v })
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--g500)' }}>加载中...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-gray-500)' }}>加载中...</div>
 
   const done = projects.filter(p => getStatus(p) === 'done').length
   const doing = projects.filter(p => getStatus(p) === 'doing').length
@@ -114,8 +115,8 @@ export default function ITPage() {
           <div className="smv" style={{ color: 'var(--hr)' }}>{doing}</div>
           <div className="sml">推进中</div>
         </div>
-        <div className="sm" style={{ background: 'var(--g100)' }}>
-          <div className="smv" style={{ color: 'var(--g500)' }}>{plan}</div>
+        <div className="sm" style={{ background: 'var(--color-gray-100)' }}>
+          <div className="smv" style={{ color: 'var(--color-gray-500)' }}>{plan}</div>
           <div className="sml">待启动</div>
         </div>
       </div>
@@ -123,13 +124,13 @@ export default function ITPage() {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
         <SearchBar value={search} placeholder="搜索项目 / 一级项目 / 责任人..." onChange={setSearch} onSearch={handleSearch} onClear={handleClear} />
         <div style={{ flex: 1 }} />
-        <button className="btn" onClick={openCreate}>➕ 新增项目</button>
+        <button className="btn" onClick={openCreate}><IconAdd size={14} />新增项目</button>
       </div>
 
       {editing && (
         <Section title={editing._new ? '新增信息化项目' : '编辑信息化项目'} actions={
           <div>
-            <button className="btn" onClick={handleSave} style={{ marginRight: 8 }}>💾 保存</button>
+            <button className="btn" onClick={handleSave} style={{ marginRight: 8 }}><IconSave size={14} />保存</button>
             <button className="btn btn-o" onClick={() => setEditing(null)}>取消</button>
           </div>
         }>
@@ -148,28 +149,28 @@ export default function ITPage() {
               ['duration', '周期'],
             ].map(([k, label]) => (
               <div key={k}>
-                <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>{label}</div>
+                <div className="form-label">{label}</div>
                 <input
                   value={form[k] as string || ''}
                   onChange={e => setF(k, e.target.value)}
-                  style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                  className="form-input"
                 />
               </div>
             ))}
             <div>
-              <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>阶段数量</div>
+              <div className="form-label">阶段数量</div>
               <input
                 type="number"
                 value={form.phase_count as number || 0}
                 onChange={e => setF('phase_count', parseInt(e.target.value) || 0)}
-                style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                className="form-input"
               />
             </div>
           </div>
         </Section>
       )}
 
-      <Section title="💻 信息化细化方案 (来源: 后勤部-信息化.xlsx)" badge={`${total}项 · 1 sheet`}>
+      <Section title="信息化细化方案 (来源: 后勤部-信息化.xlsx)" badge={`${total}项 · 1 sheet`}>
         <table>
           <thead>
             <tr>
@@ -196,8 +197,8 @@ export default function ITPage() {
                 <td title={p.issue}>{p.issue ? p.issue.substring(0, 20) + '...' : '-'}</td>
                 <td title={p.solve}>{p.solve ? p.solve.substring(0, 20) + '...' : '-'}</td>
                 <td>
-                  <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEdit(p)}>✏️</button>
-                  <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDelete(p.id)}>🗑️</button>
+                  <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEdit(p)}><IconEdit size={14} /></button>
+                  <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDelete(p.id)}><IconDelete size={14} /></button>
                 </td>
               </tr>
             ))}

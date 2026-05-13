@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { IconAudit } from '../components/Icons'
 import Pagination from '../components/Pagination'
 import './AuditLogPage.css'
 
@@ -73,7 +74,7 @@ export default function AuditLogPage() {
   return (
     <div className="audit-page">
       <div className="um-header">
-        <h2>📋 审计日志</h2>
+        <h2><IconAudit size={20} />审计日志</h2>
         <span className="audit-count">共 {total} 条记录</span>
       </div>
 
@@ -107,7 +108,7 @@ export default function AuditLogPage() {
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#6B7280' }}>加载中...</div>
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-gray-500)' }}>加载中...</div>
       ) : (
         <>
           <table>
@@ -127,13 +128,13 @@ export default function AuditLogPage() {
                 const ac = ACTION_LABELS[log.action] || { label: log.action, cls: '' }
                 return (
                   <tr key={log.id}>
-                    <td style={{ fontSize: 11, color: '#9CA3AF' }}>{log.id}</td>
+                    <td style={{ fontSize: 11, color: 'var(--color-gray-400)' }}>{log.id}</td>
                     <td style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{log.created_at}</td>
                     <td>{log.display_name}</td>
                     <td><span className={`audit-tag ${ac.cls}`}>{ac.label}</span></td>
                     <td><span className="dept-tag">{log.resource}</span></td>
                     <td style={{ fontSize: 12 }}>{log.detail || '-'}</td>
-                    <td style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'monospace' }}>{log.ip_address || '-'}</td>
+                    <td style={{ fontSize: 11, color: 'var(--color-gray-400)', fontFamily: 'monospace' }}>{log.ip_address || '-'}</td>
                   </tr>
                 )
               })}

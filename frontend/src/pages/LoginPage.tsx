@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { authApi } from '../services/api'
+import { IconClock } from '../components/Icons'
 import './LoginPage.css'
 
 export default function LoginPage() {
@@ -35,7 +36,10 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <h1>🔧 后勤部</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 }}>
+            <IconClock size={28} color="#60A5FA" />
+            <h1>后勤部</h1>
+          </div>
           <span>四项规划统筹管理系统</span>
         </div>
         <form onSubmit={handleSubmit}>

@@ -4,6 +4,7 @@ import Tabs from '../components/Tabs'
 import Pagination from '../components/Pagination'
 import SearchBar from '../components/SearchBar'
 import { api, type Employee, type HRDistributions, type HRPlanItem, type HRChangeItem } from '../services/api'
+import { IconAdd, IconSave, IconEdit, IconDelete } from '../components/Icons'
 
 const hrTabs = [
   { key: 'overview', label: '团队现状' },
@@ -107,7 +108,7 @@ export default function HRPage() {
 
   const STATUS_OPTIONS = ['在岗', '新增', '调岗', '优化']
   const statusColor: Record<string, string> = {
-    '在岗': 'var(--g400)',
+    '在岗': 'var(--color-gray-400)',
     '新增': 'var(--pro)',
     '调岗': 'var(--it)',
     '优化': 'var(--fin)',
@@ -123,7 +124,7 @@ export default function HRPage() {
     }
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--g500)' }}>加载中...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-gray-500)' }}>加载中...</div>
 
   return (
     <div>
@@ -134,32 +135,32 @@ export default function HRPage() {
           <div className="stats-mini" style={{ marginTop: 16 }}>
             <div className="sm" style={{ background: 'var(--pro-bg)' }}>
               <div className="smv" style={{ color: 'var(--pro)' }}>
-                {dist.summary.total}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--g500)' }}>人</span>
+                {dist.summary.total}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-gray-500)' }}>人</span>
               </div>
               <div className="sml">在编人数</div>
             </div>
             <div className="sm" style={{ background: 'var(--it-bg)' }}>
               <div className="smv" style={{ color: 'var(--it)' }}>
-                {dist.summary.avg_age}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--g500)' }}>岁</span>
+                {dist.summary.avg_age}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-gray-500)' }}>岁</span>
               </div>
               <div className="sml">平均年龄</div>
             </div>
             <div className="sm" style={{ background: 'var(--hr-bg)' }}>
               <div className="smv" style={{ color: 'var(--hr)' }}>
-                {dist.summary.avg_service}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--g500)' }}>年</span>
+                {dist.summary.avg_service}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-gray-500)' }}>年</span>
               </div>
               <div className="sml">平均司龄</div>
             </div>
             <div className="sm" style={{ background: 'var(--fin-bg)' }}>
               <div className="smv" style={{ color: 'var(--fin)' }}>
-                {dist.summary.above_bachelor_pct}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--g500)' }}>%</span>
+                {dist.summary.above_bachelor_pct}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-gray-500)' }}>%</span>
               </div>
               <div className="sml">本科以上</div>
             </div>
           </div>
 
           <div className="grid3">
-            <Section title="🎓 学历分布">
+            <Section title="学历分布">
               <table>
                 <thead>
                   <tr><th>学历</th><th className="t-c">人数</th><th className="t-c">占比</th></tr>
@@ -171,7 +172,7 @@ export default function HRPage() {
                 </tbody>
               </table>
             </Section>
-            <Section title="📅 年龄分布">
+            <Section title="年龄分布">
               <table>
                 <thead>
                   <tr><th>年龄段</th><th className="t-c">人数</th><th className="t-c">占比</th></tr>
@@ -183,7 +184,7 @@ export default function HRPage() {
                 </tbody>
               </table>
             </Section>
-            <Section title="👥 男女比例">
+            <Section title="男女比例">
               <table>
                 <thead>
                   <tr><th>性别</th><th className="t-c">人数</th><th className="t-c">占比</th></tr>
@@ -200,13 +201,13 @@ export default function HRPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, marginTop: 12, gap: 8 }}>
             <SearchBar value={search} placeholder="搜索姓名 / 部门 / 职务..." onChange={setSearch} onSearch={handleSearch} onClear={handleClear} />
             <div style={{ flex: 1 }} />
-            <button className="btn" onClick={openCreate}>➕ 新增员工</button>
+            <button className="btn" onClick={openCreate}><IconAdd size={14} />新增员工</button>
           </div>
 
           {editing && (
             <Section title={editing._new ? '新增员工' : '编辑员工'} actions={
               <div>
-                <button className="btn" onClick={handleSave} style={{ marginRight: 8 }}>💾 保存</button>
+                <button className="btn" onClick={handleSave} style={{ marginRight: 8 }}><IconSave size={14} />保存</button>
                 <button className="btn btn-o" onClick={() => setEditing(null)}>取消</button>
               </div>
             }>
@@ -221,28 +222,28 @@ export default function HRPage() {
                   ['status', '状态'],
                 ].map(([k, label]) => (
                   <div key={k}>
-                    <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>{label}</div>
+                    <div className="form-label">{label}</div>
                     <input
                       value={form[k] as string || ''}
                       onChange={e => setF(k, e.target.value)}
-                      style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                      className="form-input"
                     />
                   </div>
                 ))}
                 <div>
-                  <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>年龄</div>
+                  <div className="form-label">年龄</div>
                   <input
                     type="number"
                     value={form.age as number || ''}
                     onChange={e => setF('age', parseInt(e.target.value) || undefined)}
-                    style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                    className="form-input"
                   />
                 </div>
               </div>
             </Section>
           )}
 
-          <Section title="📋 人员名册 (来源: 后勤部-人力.xlsx)" badge={`${total}人`}>
+          <Section title="人员名册 (来源: 后勤部-人力.xlsx)" badge={`${total}人`}>
             <table>
               <thead>
                 <tr>
@@ -257,8 +258,8 @@ export default function HRPage() {
                     <td>{p.name}</td><td>{p.post}</td><td>{p.dept}</td><td>{p.edu}</td>
                     <td className="t-c">{p.age}</td><td className="t-c">{p.service}</td><td>{p.match || '-'}</td>
                     <td>
-                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEdit(p)}>✏️</button>
-                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDelete(p.id)}>🗑️</button>
+                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEdit(p)}><IconEdit size={14} /></button>
+                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDelete(p.id)}><IconDelete size={14} /></button>
                     </td>
                   </tr>
                 ))}
@@ -271,7 +272,7 @@ export default function HRPage() {
 
       {activeTab === 'plan' && (
         <div className="page-enter">
-          <Section title="📈 2026年人力规划KPI · 逐月 (来源: 后勤部-人力.xlsx)">
+          <Section title="2026年人力规划KPI · 逐月 (来源: 后勤部-人力.xlsx)">
             <table>
               <thead>
                 <tr>
@@ -292,7 +293,7 @@ export default function HRPage() {
                   </tr>
                 ))}
                 {planKPI.length === 0 && (
-                  <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--g500)', padding: 20 }}>暂无KPI数据</td></tr>
+                  <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--color-gray-500)', padding: 20 }}>暂无KPI数据</td></tr>
                 )}
               </tbody>
             </table>
@@ -302,12 +303,12 @@ export default function HRPage() {
 
       {activeTab === 'change' && (
         <div className="page-enter">
-          <Section title="🔄 人员调整月度轨迹 (来源: 后勤部-人力.xlsx)" badge={`${changes.length}人`}>
+          <Section title="人员调整月度轨迹 (来源: 后勤部-人力.xlsx)" badge={`${changes.length}人`}>
             <div style={{ overflowX: 'auto' }}>
               <table>
                 <thead>
                   <tr>
-                    <th style={{ position: 'sticky', left: 0, background: 'var(--g50)', zIndex: 1, minWidth: 60 }}>姓名</th>
+                    <th style={{ position: 'sticky', left: 0, background: 'var(--color-gray-50)', zIndex: 1, minWidth: 60 }}>姓名</th>
                     <th>部门</th>
                     <th>职务</th>
                     {Array.from({ length: 12 }, (_, i) => (
@@ -318,7 +319,7 @@ export default function HRPage() {
                 <tbody>
                   {changes.map((p) => (
                     <tr key={p.name}>
-                      <td style={{ position: 'sticky', left: 0, background: 'var(--g50)', fontWeight: 500, whiteSpace: 'nowrap' }}>{p.name}</td>
+                      <td style={{ position: 'sticky', left: 0, background: 'var(--color-gray-50)', fontWeight: 500, whiteSpace: 'nowrap' }}>{p.name}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{p.dept}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{p.post}</td>
                       {Array.from({ length: 12 }, (_, i) => {
@@ -332,10 +333,10 @@ export default function HRPage() {
                               style={{
                                 width: '100%',
                                 padding: '2px 4px',
-                                border: '1px solid var(--g200)',
+                                border: '1px solid var(--color-gray-200)',
                                 borderRadius: 4,
                                 fontSize: 12,
-                                color: statusColor[val] || 'var(--g500)',
+                                color: statusColor[val] || 'var(--color-gray-500)',
                                 fontWeight: val !== '在岗' ? 600 : 400,
                                 background: val !== '在岗' ? `${statusColor[val]}10` : '#fff',
                                 cursor: 'pointer',
@@ -351,7 +352,7 @@ export default function HRPage() {
                     </tr>
                   ))}
                   {changes.length === 0 && (
-                    <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--g500)', padding: 20 }}>暂无人员调整记录</td></tr>
+                    <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--color-gray-500)', padding: 20 }}>暂无人员调整记录</td></tr>
                   )}
                 </tbody>
               </table>

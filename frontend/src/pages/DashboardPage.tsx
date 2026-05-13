@@ -13,7 +13,7 @@ export default function DashboardPage() {
     api.getDashboard().then(setData).finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--g500)' }}>加载中...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-gray-500)' }}>加载中...</div>
   if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--fin)' }}>数据加载失败</div>
 
   const { kpi, top_projects, top_it_projects, dept_distribution, finance_categories } = data
@@ -22,33 +22,33 @@ export default function DashboardPage() {
     <div>
       <div className="kpi-row">
         <div className="kpi-card c1">
-          <div className="kl">📋 专业项目总数</div>
+          <div className="kl">专业项目总数</div>
           <div className="kv" style={{ color: 'var(--pro)' }}>{kpi.proj_count}</div>
           <div className="ks">{dept_distribution.length}个部门 · 时间跨度5月-10月</div>
         </div>
         <div className="kpi-card c2">
-          <div className="kl">💻 信息化子项目</div>
+          <div className="kl">信息化子项目</div>
           <div className="kv" style={{ color: 'var(--it)' }}>{kpi.it_count}</div>
           <div className="ks">{kpi.it_done}项已完成 · {kpi.it_doing_planning}项推进/规划中</div>
         </div>
         <div className="kpi-card c3">
-          <div className="kl">👥 在编人数</div>
+          <div className="kl">在编人数</div>
           <div className="kv" style={{ color: 'var(--hr)' }}>
-            {kpi.emp_count}<span style={{ fontSize: 14, color: 'var(--g500)' }}>→{kpi.emp_target}</span>
+            {kpi.emp_count}<span style={{ fontSize: 14, color: 'var(--color-gray-500)' }}>→{kpi.emp_target}</span>
           </div>
           <div className="ks">目标编制{kpi.emp_target}人</div>
         </div>
         <div className="kpi-card c4">
-          <div className="kl">💰 年度预算</div>
+          <div className="kl">年度预算</div>
           <div className="kv" style={{ color: 'var(--fin)' }}>
-            {kpi.total_budget.toLocaleString()}<span style={{ fontSize: 14, color: 'var(--g500)' }}>万</span>
+            {kpi.total_budget.toLocaleString()}<span style={{ fontSize: 14, color: 'var(--color-gray-500)' }}>万</span>
           </div>
           <div className="ks">Q1实际{kpi.q1_actual}万</div>
         </div>
       </div>
 
       <div className="grid2">
-        <Section title={`📋 专业项目进度 (${kpi.proj_count}项)`}>
+        <Section title={`专业项目进度 (${kpi.proj_count}项)`}>
           <table>
             <thead>
               <tr>
@@ -70,7 +70,7 @@ export default function DashboardPage() {
           </table>
         </Section>
 
-        <Section title={`💻 信息化项目状态 (${kpi.it_count}项)`}>
+        <Section title={`信息化项目状态 (${kpi.it_count}项)`}>
           <table>
             <thead>
               <tr>
@@ -94,7 +94,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid2">
-        <Section title="👥 部门项目分布">
+        <Section title="部门项目分布">
           <table>
             <thead>
               <tr><th>部门</th><th className="t-c">项目数</th><th className="t-c">占比</th></tr>
@@ -111,7 +111,7 @@ export default function DashboardPage() {
           </table>
         </Section>
 
-        <Section title="💰 费用结构总览">
+        <Section title="费用结构总览">
           <table>
             <thead>
               <tr><th>费用类别</th><th className="t-c">年度预算(万)</th><th className="t-c">占比</th></tr>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { rbacApi, type UserItem, type RoleItem, type PermissionItem } from '../services/api'
+import { IconAdmin } from '../components/Icons'
 import Pagination from '../components/Pagination'
 import SearchBar from '../components/SearchBar'
 import './UserManagementPage.css'
@@ -166,19 +167,19 @@ export default function UserManagementPage() {
     }))
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#6B7280' }}>加载中...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-gray-500)' }}>加载中...</div>
 
   return (
     <div className="um-page">
       <div className="um-header">
-        <h2>🔐 系统管理</h2>
+        <h2><IconAdmin size={20} />系统管理</h2>
       </div>
 
       {error && <div className="alert-row"><div className="alert-item alert-yellow">{error}</div></div>}
 
       <div className="tabs">
-        <button className={tab === 'users' ? 'on' : ''} onClick={() => setTab('users')}>👤 用户管理</button>
-        <button className={tab === 'roles' ? 'on' : ''} onClick={() => setTab('roles')}>🔑 角色管理</button>
+        <button className={tab === 'users' ? 'on' : ''} onClick={() => setTab('users')}>用户管理</button>
+        <button className={tab === 'roles' ? 'on' : ''} onClick={() => setTab('roles')}>角色管理</button>
       </div>
 
       {tab === 'users' && (
@@ -186,7 +187,7 @@ export default function UserManagementPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, gap: 8 }}>
             <SearchBar value={userSearch} placeholder="搜索用户名 / 显示名称..." onChange={setUserSearch} onSearch={handleUserSearch} onClear={handleUserClear} />
             <div style={{ flex: 1 }} />
-            <button className="btn btn-p" onClick={() => { resetUserForm(); setShowUserForm(true) }}>+ 新增用户</button>
+            <button className="btn btn-p" onClick={() => { resetUserForm(); setShowUserForm(true) }}>新增用户</button>
           </div>
 
           {showUserForm && (
@@ -259,7 +260,7 @@ export default function UserManagementPage() {
                     ))}
                   </td>
                   <td><span className={`stag ${u.is_active ? 'stag-done' : 'stag-paused'}`}>{u.is_active ? '启用' : '禁用'}</span></td>
-                  <td style={{ fontSize: 11, color: '#6B7280' }}>{u.created_at}</td>
+                  <td style={{ fontSize: 11, color: 'var(--color-gray-500)' }}>{u.created_at}</td>
                   <td className="t-c">
                     <button className="btn btn-o" style={{ marginRight: 6 }} onClick={() => openEditUser(u)}>编辑</button>
                     <button className="btn btn-o" style={{ color: '#DC2626' }} onClick={() => deleteUser(u.id)}>删除</button>
@@ -277,7 +278,7 @@ export default function UserManagementPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, gap: 8 }}>
             <SearchBar value={roleSearch} placeholder="搜索角色代码 / 名称..." onChange={setRoleSearch} onSearch={handleRoleSearch} onClear={handleRoleClear} />
             <div style={{ flex: 1 }} />
-            <button className="btn btn-p" onClick={() => { resetRoleForm(); setShowRoleForm(true) }}>+ 新增角色</button>
+            <button className="btn btn-p" onClick={() => { resetRoleForm(); setShowRoleForm(true) }}>新增角色</button>
           </div>
 
           {showRoleForm && (
@@ -337,7 +338,7 @@ export default function UserManagementPage() {
                   <td>{r.id}</td>
                   <td><code>{r.code}</code></td>
                   <td>{r.name}</td>
-                  <td style={{ fontSize: 11, color: '#6B7280' }}>{r.description || '-'}</td>
+                  <td style={{ fontSize: 11, color: 'var(--color-gray-500)' }}>{r.description || '-'}</td>
                   <td>
                     {r.permissions.map(p => (
                       <span key={p.id} className="stag stag-done" style={{ marginRight: 3, marginBottom: 3 }}>{p.code}</span>

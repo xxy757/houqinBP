@@ -4,6 +4,7 @@ import Tabs from '../components/Tabs'
 import Pagination from '../components/Pagination'
 import SearchBar from '../components/SearchBar'
 import { api, type FinanceBudgetItem, type TimelinePhase, type ReductionItem } from '../services/api'
+import { IconAdd, IconSave, IconEdit, IconDelete } from '../components/Icons'
 
 const finTabs = [
   { key: 'budget', label: '26-27年预算' },
@@ -24,6 +25,15 @@ const emptyReduction = {
   section: '', cost_subject: '', year_2025_actual: undefined as number | undefined,
   year_budget: undefined as number | undefined, change_rate: '', detail_item: '',
   category: '', priority: '', reduction_plan: '',
+}
+
+const fmtWan = (val: number | undefined | null) => {
+  if (val == null) return '-'
+  return val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+const fmtYuan = (val: number | undefined | null) => {
+  if (val == null) return ''
+  return val.toFixed(2)
 }
 
 export default function FinancePage() {
@@ -83,7 +93,7 @@ export default function FinancePage() {
       m1: b.m1 || '', m2: b.m2 || '', m3: b.m3 || '', m4: b.m4 || '', m5: b.m5 || '', m6: b.m6 || '',
       m7: b.m7 || '', m8: b.m8 || '', m9: b.m9 || '', m10: b.m10 || '', m11: b.m11 || '', m12: b.m12 || '',
       total: b.total || '',
-      budget_num: b.budget ? String(b.budget) : '',
+      budget_num: b.budget ? fmtYuan(b.budget) : '',
     })
     setEditingBudget({ _id: b.id })
   }
@@ -145,7 +155,7 @@ export default function FinancePage() {
   const setBF = (k: string, v: unknown) => setBudgetForm({ ...budgetForm, [k]: v })
   const setRF = (k: string, v: unknown) => setReductionForm({ ...reductionForm, [k]: v })
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--g500)' }}>加载中...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-gray-500)' }}>加载中...</div>
 
   const totalBudget = budget.reduce((sum, b) => sum + (b.budget || 0), 0)
   const totalBudgetWan = Math.round(totalBudget / 10000)
@@ -159,25 +169,25 @@ export default function FinancePage() {
           <div className="stats-mini" style={{ marginTop: 16 }}>
             <div className="sm" style={{ background: 'var(--fin-bg)' }}>
               <div className="smv" style={{ color: 'var(--fin)' }}>
-                {totalBudgetWan.toLocaleString()}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--g500)' }}>万</span>
+                {totalBudgetWan.toLocaleString()}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-gray-500)' }}>万</span>
               </div>
               <div className="sml">全年预算总额</div>
             </div>
             <div className="sm" style={{ background: 'var(--hr-bg)' }}>
               <div className="smv" style={{ color: 'var(--hr)' }}>
-                540<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--g500)' }}>万</span>
+                540<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-gray-500)' }}>万</span>
               </div>
               <div className="sml">Q1实际支出</div>
             </div>
             <div className="sm" style={{ background: 'var(--it-bg)' }}>
               <div className="smv" style={{ color: 'var(--it)' }}>
-                {totalBudget > 0 ? Math.round(540 / totalBudgetWan * 100 * 100) / 100 : 0}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--g500)' }}>%</span>
+                {totalBudget > 0 ? Math.round(540 / totalBudgetWan * 100 * 100) / 100 : 0}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-gray-500)' }}>%</span>
               </div>
               <div className="sml">预算已执行</div>
             </div>
             <div className="sm" style={{ background: 'var(--pro-bg)' }}>
               <div className="smv" style={{ color: 'var(--pro)' }}>
-                {totalBudgetWan - 540}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--g500)' }}>万</span>
+                {totalBudgetWan - 540}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-gray-500)' }}>万</span>
               </div>
               <div className="sml">剩余可用</div>
             </div>
@@ -186,13 +196,13 @@ export default function FinancePage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
             <SearchBar value={budgetSearch} placeholder="搜索费用类别 / 部门..." onChange={setBudgetSearch} onSearch={handleBudgetSearch} onClear={handleBudgetClear} />
             <div style={{ flex: 1 }} />
-            <button className="btn" onClick={openCreateBudget}>➕ 新增预算项</button>
+            <button className="btn" onClick={openCreateBudget}><IconAdd size={14} />新增预算项</button>
           </div>
 
           {editingBudget && (
             <Section title={editingBudget._new ? '新增预算项' : '编辑预算项'} actions={
               <div>
-                <button className="btn" onClick={handleSaveBudget} style={{ marginRight: 8 }}>💾 保存</button>
+                <button className="btn" onClick={handleSaveBudget} style={{ marginRight: 8 }}><IconSave size={14} />保存</button>
                 <button className="btn btn-o" onClick={() => setEditingBudget(null)}>取消</button>
               </div>
             }>
@@ -205,11 +215,11 @@ export default function FinancePage() {
                   ['budget_num', '预算金额'],
                 ].map(([k, label]) => (
                   <div key={k}>
-                    <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>{label}</div>
+                    <div className="form-label">{label}</div>
                     <input
                       value={budgetForm[k as string] as string || ''}
                       onChange={e => setBF(k, e.target.value)}
-                      style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                      className="form-input"
                     />
                   </div>
                 ))}
@@ -217,7 +227,7 @@ export default function FinancePage() {
             </Section>
           )}
 
-          <Section title="🏗️ 费用结构分析" badge={`${budgetTotal}项`}>
+          <Section title="费用结构分析" badge={`${budgetTotal}项`}>
             <table>
               <thead>
                 <tr>
@@ -233,11 +243,11 @@ export default function FinancePage() {
                   return (
                     <tr key={f.id}>
                       <td>{f.cat}</td>
-                      <td className="t-c">{bw.toLocaleString()}</td>
+                      <td className="t-c">{fmtWan(bw)}</td>
                       <td className="t-c">{totalBudget > 0 ? Math.round((f.budget || 0) / totalBudget * 100) + '%' : '0%'}</td>
                       <td>
-                        <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEditBudget(f)}>✏️</button>
-                        <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDeleteBudget(f.id)}>🗑️</button>
+                        <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEditBudget(f)}><IconEdit size={14} /></button>
+                        <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDeleteBudget(f.id)}><IconDelete size={14} /></button>
                       </td>
                     </tr>
                   )
@@ -251,7 +261,7 @@ export default function FinancePage() {
 
       {activeTab === 'timeline' && (
         <div className="page-enter">
-          <Section title="📅 执行时间线 2026年5月 - 2027年3月" badge={`${timeline.length}阶段`}>
+          <Section title="执行时间线 2026年5月 - 2027年3月" badge={`${timeline.length}阶段`}>
             <div className="tl-block">
               {timeline.map((t) => (
                 <div key={t.phase} className="tl-phase">
@@ -276,13 +286,13 @@ export default function FinancePage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
             <SearchBar value={reductionSearch} placeholder="搜索费用科目 / 板块 / 类别..." onChange={setReductionSearch} onSearch={handleReductionSearch} onClear={handleReductionClear} />
             <div style={{ flex: 1 }} />
-            <button className="btn" onClick={openCreateReduction}>➕ 新增降费项</button>
+            <button className="btn" onClick={openCreateReduction}><IconAdd size={14} />新增降费项</button>
           </div>
 
           {editingReduction && (
             <Section title={editingReduction._new ? '新增降费项' : '编辑降费项'} actions={
               <div>
-                <button className="btn" onClick={handleSaveReduction} style={{ marginRight: 8 }}>💾 保存</button>
+                <button className="btn" onClick={handleSaveReduction} style={{ marginRight: 8 }}><IconSave size={14} />保存</button>
                 <button className="btn btn-o" onClick={() => setEditingReduction(null)}>取消</button>
               </div>
             }>
@@ -297,37 +307,37 @@ export default function FinancePage() {
                   ['reduction_plan', '降费方案摘要'],
                 ].map(([k, label]) => (
                   <div key={k}>
-                    <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>{label}</div>
+                    <div className="form-label">{label}</div>
                     <input
                       value={reductionForm[k as string] as string || ''}
                       onChange={e => setRF(k, e.target.value)}
-                      style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                      className="form-input"
                     />
                   </div>
                 ))}
                 <div>
-                  <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>2025实际(万)</div>
+                  <div className="form-label">2025实际(万)</div>
                   <input
                     type="number"
                     value={reductionForm.year_2025_actual as number || ''}
                     onChange={e => setRF('year_2025_actual', parseFloat(e.target.value) || undefined)}
-                    style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                    className="form-input"
                   />
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: 'var(--g500)', marginBottom: 2 }}>本年预算(万)</div>
+                  <div className="form-label">本年预算(万)</div>
                   <input
                     type="number"
                     value={reductionForm.year_budget as number || ''}
                     onChange={e => setRF('year_budget', parseFloat(e.target.value) || undefined)}
-                    style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--g200)', borderRadius: 4, fontSize: 13 }}
+                    className="form-input"
                   />
                 </div>
               </div>
             </Section>
           )}
 
-          <Section title="📉 降费方案明细" badge={`${reductionTotal}项`}>
+          <Section title="降费方案明细" badge={`${reductionTotal}项`}>
             <table>
               <thead>
                 <tr>
@@ -345,15 +355,15 @@ export default function FinancePage() {
                 {reduction.map((f) => (
                   <tr key={f.id}>
                     <td>{f.subject}</td>
-                    <td className="t-c">{f.prev}</td>
-                    <td className="t-c">{f.curr}</td>
+                    <td className="t-c">{fmtWan(f.prev)}</td>
+                    <td className="t-c">{fmtWan(f.curr)}</td>
                     <td className="t-c">{f.change}</td>
                     <td>{f.detail}</td>
                     <td className="t-c">{f.level}</td>
                     <td>{f.plan}</td>
                     <td>
-                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEditReduction(f)}>✏️</button>
-                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDeleteReduction(f.id)}>🗑️</button>
+                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => openEditReduction(f)}><IconEdit size={14} /></button>
+                      <button className="btn btn-o" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--fin)' }} onClick={() => handleDeleteReduction(f.id)}><IconDelete size={14} /></button>
                     </td>
                   </tr>
                 ))}
