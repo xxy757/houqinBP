@@ -138,12 +138,28 @@ export interface Employee {
   gender: string
 }
 
-export interface EmployeesResponse {
-  data: Employee[]
+export interface PaginatedResponse<T> {
+  data: T[]
   total: number
   page: number
   page_size: number
 }
+
+export interface EmployeesResponse extends PaginatedResponse<Employee> {}
+
+export interface ProfessionalProjectsResponse extends PaginatedResponse<ProfessionalProject> {}
+
+export interface ITProjectsResponse extends PaginatedResponse<ITProject> {}
+
+export interface FinanceBudgetResponse extends PaginatedResponse<FinanceBudgetItem> {}
+
+export interface FinanceReductionResponse extends PaginatedResponse<ReductionItem> {}
+
+export interface UsersResponse extends PaginatedResponse<UserItem> {}
+
+export interface RolesResponse extends PaginatedResponse<RoleItem> {}
+
+export interface LinkMappingsResponse extends PaginatedResponse<LinkMapping> {}
 
 export interface DistItem {
   label: string
@@ -281,18 +297,18 @@ export interface ImpactSimulation {
 export const api = {
   getDashboard: () => fetchAPI<DashboardData>('/dashboard'),
 
-  getProfessionalProjects: () => fetchAPI<ProfessionalProject[]>('/professional-projects'),
+  getProfessionalProjects: (page = 1, pageSize = 100, search = '') => fetchAPI<ProfessionalProjectsResponse>(`/professional-projects?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
   getProfessionalProjectDetail: (id: number) => fetchAPI<ProfessionalProject>(`/professional-projects/${id}`),
   createProfessionalProject: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/professional-projects', data),
   updateProfessionalProject: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/professional-projects/${id}`, data),
   deleteProfessionalProject: (id: number) => sendAPI<{ message: string }>('DELETE', `/professional-projects/${id}`),
 
-  getITProjects: () => fetchAPI<ITProject[]>('/it-projects'),
+  getITProjects: (page = 1, pageSize = 100, search = '') => fetchAPI<ITProjectsResponse>(`/it-projects?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
   createITProject: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/it-projects', data),
   updateITProject: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/it-projects/${id}`, data),
   deleteITProject: (id: number) => sendAPI<{ message: string }>('DELETE', `/it-projects/${id}`),
 
-  getEmployees: (page = 1, pageSize = 100) => fetchAPI<EmployeesResponse>(`/hr/employees?page=${page}&page_size=${pageSize}`),
+  getEmployees: (page = 1, pageSize = 100, search = '') => fetchAPI<EmployeesResponse>(`/hr/employees?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
   createEmployee: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/hr/employees', data),
   updateEmployee: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/hr/employees/${id}`, data),
   deleteEmployee: (id: number) => sendAPI<{ message: string }>('DELETE', `/hr/employees/${id}`),
@@ -305,14 +321,14 @@ export const api = {
 
   getFinanceIndicators: () => fetchAPI<FinanceIndicator>('/finance/indicators'),
 
-  getFinanceBudget: () => fetchAPI<FinanceBudgetItem[]>('/finance/budget'),
+  getFinanceBudget: (page = 1, pageSize = 100, search = '') => fetchAPI<FinanceBudgetResponse>(`/finance/budget?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
   createFinanceBudget: (data: Record<string, unknown>) => sendAPI<{ id: number; message: string }>('POST', '/finance/budget', data),
   updateFinanceBudget: (id: number, data: Record<string, unknown>) => sendAPI<{ message: string }>('PUT', `/finance/budget/${id}`, data),
   deleteFinanceBudget: (id: number) => sendAPI<{ message: string }>('DELETE', `/finance/budget/${id}`),
 
   getFinanceTimeline: () => fetchAPI<TimelinePhase[]>('/finance/timeline'),
 
-  getFinanceReduction: () => fetchAPI<ReductionItem[]>('/finance/reduction'),
+  getFinanceReduction: (page = 1, pageSize = 100, search = '') => fetchAPI<FinanceReductionResponse>(`/finance/reduction?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
   createFinanceReduction: (data: Record<string, unknown>) =>
     sendAPI<{ id: number; message: string }>('POST', '/finance/reduction', data),
   updateFinanceReduction: (id: number, data: Record<string, unknown>) =>
@@ -320,7 +336,7 @@ export const api = {
   deleteFinanceReduction: (id: number) =>
     sendAPI<{ message: string }>('DELETE', `/finance/reduction/${id}`),
 
-  getLinkageMappings: () => fetchAPI<LinkMapping[]>('/linkage/mappings'),
+  getLinkageMappings: (page = 1, pageSize = 100, search = '') => fetchAPI<LinkMappingsResponse>(`/linkage/mappings?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
   getLinkageMapping: (id: number) => fetchAPI<LinkMapping>(`/linkage/mappings/${id}`),
   createLinkageMapping: (data: Record<string, unknown>) =>
     sendAPI<{ id: number; message: string }>('POST', '/linkage/mappings', data),
@@ -380,7 +396,7 @@ export interface PermissionItem {
 }
 
 export const rbacApi = {
-  getUsers: () => fetchAPI<UserItem[]>('/users'),
+  getUsers: (page = 1, pageSize = 100, search = '') => fetchAPI<UsersResponse>(`/users?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
   createUser: (data: Record<string, unknown>) =>
     sendAPI<{ id: number; message: string }>('POST', '/users', data),
   updateUser: (id: number, data: Record<string, unknown>) =>
@@ -388,7 +404,7 @@ export const rbacApi = {
   deleteUser: (id: number) =>
     sendAPI<{ message: string }>('DELETE', `/users/${id}`),
 
-  getRoles: () => fetchAPI<RoleItem[]>('/roles'),
+  getRoles: (page = 1, pageSize = 100, search = '') => fetchAPI<RolesResponse>(`/roles?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
   createRole: (data: Record<string, unknown>) =>
     sendAPI<{ id: number; message: string }>('POST', '/roles', data),
   updateRole: (id: number, data: Record<string, unknown>) =>

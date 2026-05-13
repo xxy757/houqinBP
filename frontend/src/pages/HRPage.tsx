@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import Section from '../components/Section'
 import Tabs from '../components/Tabs'
+import Pagination from '../components/Pagination'
+import SearchBar from '../components/SearchBar'
 import { api, type Employee, type HRDistributions, type HRPlanItem, type HRChangeItem } from '../services/api'
 
 const hrTabs = [
@@ -25,22 +27,43 @@ export default function HRPage() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null)
   const [form, setForm] = useState<Record<string, unknown>>({ ...emptyEmployee })
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [total, setTotal] = useState(0)
 
   const load = () => {
     Promise.all([
-      api.getEmployees(1, 200),
+      api.getEmployees(page, pageSize, search),
       api.getHRDistributions(),
       api.getHRPlanKPI(),
       api.getHRMonthlyChanges(),
     ]).then(([empRes, distRes, planRes, changeRes]) => {
       setEmployees(empRes.data)
+      setTotal(empRes.total)
       setDist(distRes)
       setPlanKPI(planRes)
       setChanges(changeRes)
     }).finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [page, pageSize])
+
+  const handleSearch = () => {
+    setPage(1)
+    load()
+  }
+
+  const handleClear = () => {
+    setSearch('')
+    setPage(1)
+    setTimeout(() => load(), 0)
+  }
+
+  const handlePageChange = (p: number, ps: number) => {
+    setPage(p)
+    setPageSize(ps)
+  }
 
   const openCreate = () => {
     setForm({ ...emptyEmployee })
@@ -174,7 +197,9 @@ export default function HRPage() {
             </Section>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, marginTop: 12, gap: 8 }}>
+            <SearchBar value={search} placeholder="搜索姓名 / 部门 / 职务..." onChange={setSearch} onSearch={handleSearch} onClear={handleClear} />
+            <div style={{ flex: 1 }} />
             <button className="btn" onClick={openCreate}>➕ 新增员工</button>
           </div>
 
@@ -217,7 +242,7 @@ export default function HRPage() {
             </Section>
           )}
 
-          <Section title="📋 人员名册 (来源: 后勤部-人力.xlsx)" badge={`${employees.length}人`}>
+          <Section title="📋 人员名册 (来源: 后勤部-人力.xlsx)" badge={`${total}人`}>
             <table>
               <thead>
                 <tr>
@@ -227,7 +252,7 @@ export default function HRPage() {
                 </tr>
               </thead>
               <tbody>
-                {employees.slice(0, 50).map((p) => (
+                {employees.map((p) => (
                   <tr key={p.id}>
                     <td>{p.name}</td><td>{p.post}</td><td>{p.dept}</td><td>{p.edu}</td>
                     <td className="t-c">{p.age}</td><td className="t-c">{p.service}</td><td>{p.match || '-'}</td>
@@ -239,6 +264,7 @@ export default function HRPage() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={page} pageSize={pageSize} total={total} onChange={handlePageChange} />
           </Section>
         </div>
       )}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import Section from '../components/Section'
 import StatusTag from '../components/StatusTag'
+import Pagination from '../components/Pagination'
+import SearchBar from '../components/SearchBar'
 import { api, type ITProject } from '../services/api'
 
 function getStatus(p: ITProject): 'done' | 'doing' | 'plan' {
@@ -19,12 +21,35 @@ export default function ITPage() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null)
   const [form, setForm] = useState<Record<string, unknown>>({ ...emptyForm })
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [total, setTotal] = useState(0)
 
   const load = () => {
-    api.getITProjects().then(setProjects).finally(() => setLoading(false))
+    api.getITProjects(page, pageSize, search).then(res => {
+      setProjects(res.data)
+      setTotal(res.total)
+    }).finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [page, pageSize])
+
+  const handleSearch = () => {
+    setPage(1)
+    load()
+  }
+
+  const handleClear = () => {
+    setSearch('')
+    setPage(1)
+    setTimeout(() => load(), 0)
+  }
+
+  const handlePageChange = (p: number, ps: number) => {
+    setPage(p)
+    setPageSize(ps)
+  }
 
   const openCreate = () => {
     setForm({ ...emptyForm })
@@ -70,7 +95,6 @@ export default function ITPage() {
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--g500)' }}>加载中...</div>
 
-  const total = projects.length
   const done = projects.filter(p => getStatus(p) === 'done').length
   const doing = projects.filter(p => getStatus(p) === 'doing').length
   const plan = projects.filter(p => getStatus(p) === 'plan').length
@@ -96,7 +120,9 @@ export default function ITPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
+        <SearchBar value={search} placeholder="搜索项目 / 一级项目 / 责任人..." onChange={setSearch} onSearch={handleSearch} onClear={handleClear} />
+        <div style={{ flex: 1 }} />
         <button className="btn" onClick={openCreate}>➕ 新增项目</button>
       </div>
 
@@ -161,7 +187,7 @@ export default function ITPage() {
           <tbody>
             {projects.map((p, i) => (
               <tr key={p.id}>
-                <td>{i + 1}</td>
+                <td>{(page - 1) * pageSize + i + 1}</td>
                 <td>{p.main}</td>
                 <td>{p.sub}</td>
                 <td title={p.goal}>{p.goal ? p.goal.substring(0, 25) + '...' : '-'}</td>
@@ -177,6 +203,7 @@ export default function ITPage() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} pageSize={pageSize} total={total} onChange={handlePageChange} />
       </Section>
     </div>
   )

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 from database import get_db, transaction
@@ -38,13 +38,35 @@ class RoleUpdate(BaseModel):
 
 
 @router.get("/users")
-def list_users(current_user: dict = Depends(require_permission("users:read"))):
+def list_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    search: str = Query(""),
+    current_user: dict = Depends(require_permission("users:read")),
+):
     db = get_db()
     cur = db.cursor()
-    users = [dict(r) for r in cur.execute("""
-        SELECT id, username, display_name, is_active, version, created_at
-        FROM users ORDER BY id
-    """).fetchall()]
+    if search:
+        like = f"%{search}%"
+        total = cur.execute(
+            "SELECT COUNT(*) FROM users WHERE username LIKE ? OR display_name LIKE ?",
+            (like, like)
+        ).fetchone()[0]
+    else:
+        total = cur.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    offset = (page - 1) * page_size
+    if search:
+        users = [dict(r) for r in cur.execute("""
+            SELECT id, username, display_name, is_active, version, created_at
+            FROM users
+            WHERE username LIKE ? OR display_name LIKE ?
+            ORDER BY id LIMIT ? OFFSET ?
+        """, (like, like, page_size, offset)).fetchall()]
+    else:
+        users = [dict(r) for r in cur.execute("""
+            SELECT id, username, display_name, is_active, version, created_at
+            FROM users ORDER BY id LIMIT ? OFFSET ?
+        """, (page_size, offset)).fetchall()]
     for u in users:
         u["roles"] = [dict(r) for r in cur.execute("""
             SELECT r.id, r.code, r.name
@@ -53,7 +75,7 @@ def list_users(current_user: dict = Depends(require_permission("users:read"))):
             WHERE ur.user_id = ?
         """, (u["id"],)).fetchall()]
     db.close()
-    return users
+    return {"data": users, "total": total, "page": page, "page_size": page_size}
 
 
 @router.post("/users")
@@ -147,10 +169,33 @@ def delete_user(user_id: int, current_user: dict = Depends(require_permission("u
 
 
 @router.get("/roles")
-def list_roles(current_user: dict = Depends(require_permission("roles:read"))):
+def list_roles(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    search: str = Query(""),
+    current_user: dict = Depends(require_permission("roles:read")),
+):
     db = get_db()
     cur = db.cursor()
-    roles = [dict(r) for r in cur.execute("SELECT * FROM roles ORDER BY id").fetchall()]
+    if search:
+        like = f"%{search}%"
+        total = cur.execute(
+            "SELECT COUNT(*) FROM roles WHERE code LIKE ? OR name LIKE ?",
+            (like, like)
+        ).fetchone()[0]
+    else:
+        total = cur.execute("SELECT COUNT(*) FROM roles").fetchone()[0]
+    offset = (page - 1) * page_size
+    if search:
+        roles = [dict(r) for r in cur.execute("""
+            SELECT * FROM roles
+            WHERE code LIKE ? OR name LIKE ?
+            ORDER BY id LIMIT ? OFFSET ?
+        """, (like, like, page_size, offset)).fetchall()]
+    else:
+        roles = [dict(r) for r in cur.execute("""
+            SELECT * FROM roles ORDER BY id LIMIT ? OFFSET ?
+        """, (page_size, offset)).fetchall()]
     for r in roles:
         r["permissions"] = [dict(pr) for pr in cur.execute("""
             SELECT p.id, p.code, p.name
@@ -159,7 +204,7 @@ def list_roles(current_user: dict = Depends(require_permission("roles:read"))):
             WHERE rp.role_id = ?
         """, (r["id"],)).fetchall()]
     db.close()
-    return roles
+    return {"data": roles, "total": total, "page": page, "page_size": page_size}
 
 
 @router.post("/roles")

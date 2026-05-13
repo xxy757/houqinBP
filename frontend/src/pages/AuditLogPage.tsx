@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import Pagination from '../components/Pagination'
 import './AuditLogPage.css'
 
 interface AuditLog {
@@ -61,6 +62,13 @@ export default function AuditLogPage() {
 
   const totalPages = Math.ceil(total / pageSize)
   if (!user) return null
+
+  const handlePageChange = (p: number, ps: number) => {
+    setPage(p)
+    if (ps !== pageSize) {
+      // handled via state + useEffect
+    }
+  }
 
   return (
     <div className="audit-page">
@@ -133,11 +141,7 @@ export default function AuditLogPage() {
           </table>
 
           {totalPages > 1 && (
-            <div className="audit-pager">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</button>
-              <span>第 {page} / {totalPages} 页</span>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>下一页</button>
-            </div>
+            <Pagination page={page} pageSize={pageSize} total={total} onChange={(p: number) => { setPage(p); }} />
           )}
         </>
       )}

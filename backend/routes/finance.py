@@ -1,5 +1,5 @@
 """财务管控 API"""
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db, transaction
@@ -65,17 +65,41 @@ def get_indicators(current_user: dict = Depends(require_permission("finance:read
 
 
 @router.get("/budget")
-def get_budget(current_user: dict = Depends(require_permission("finance:read"))):
+def get_budget(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    search: str = Query(""),
+    current_user: dict = Depends(require_permission("finance:read")),
+):
     db = get_db()
     cur = db.cursor()
-    rows = [dict(r) for r in cur.execute("""
-        SELECT id, category as cat, department, version,
-               m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12,
-               total, CAST(budget_num AS REAL) as budget
-        FROM financial_budget ORDER BY id
-    """).fetchall()]
+    if search:
+        like = f"%{search}%"
+        total = cur.execute(
+            "SELECT COUNT(*) FROM financial_budget WHERE category LIKE ? OR department LIKE ?",
+            (like, like)
+        ).fetchone()[0]
+    else:
+        total = cur.execute("SELECT COUNT(*) FROM financial_budget").fetchone()[0]
+    offset = (page - 1) * page_size
+    if search:
+        rows = [dict(r) for r in cur.execute("""
+            SELECT id, category as cat, department, version,
+                   m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12,
+                   total, CAST(budget_num AS REAL) as budget
+            FROM financial_budget
+            WHERE category LIKE ? OR department LIKE ?
+            ORDER BY id LIMIT ? OFFSET ?
+        """, (like, like, page_size, offset)).fetchall()]
+    else:
+        rows = [dict(r) for r in cur.execute("""
+            SELECT id, category as cat, department, version,
+                   m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12,
+                   total, CAST(budget_num AS REAL) as budget
+            FROM financial_budget ORDER BY id LIMIT ? OFFSET ?
+        """, (page_size, offset)).fetchall()]
     db.close()
-    return rows
+    return {"data": rows, "total": total, "page": page, "page_size": page_size}
 
 
 @router.post("/budget")
@@ -184,17 +208,41 @@ def get_timeline(current_user: dict = Depends(require_permission("finance:read")
 
 
 @router.get("/reduction")
-def get_reduction(current_user: dict = Depends(require_permission("finance:read"))):
+def get_reduction(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    search: str = Query(""),
+    current_user: dict = Depends(require_permission("finance:read")),
+):
     db = get_db()
     cur = db.cursor()
-    rows = [dict(r) for r in cur.execute("""
-        SELECT id, version, section, cost_subject as subject, year_2025_actual as prev,
-               year_budget as curr, change_rate as change, detail_item as detail,
-               category, priority as level, reduction_plan as plan
-        FROM financial_reduction ORDER BY id
-    """).fetchall()]
+    if search:
+        like = f"%{search}%"
+        total = cur.execute(
+            "SELECT COUNT(*) FROM financial_reduction WHERE cost_subject LIKE ? OR section LIKE ? OR category LIKE ? OR detail_item LIKE ?",
+            (like, like, like, like)
+        ).fetchone()[0]
+    else:
+        total = cur.execute("SELECT COUNT(*) FROM financial_reduction").fetchone()[0]
+    offset = (page - 1) * page_size
+    if search:
+        rows = [dict(r) for r in cur.execute("""
+            SELECT id, version, section, cost_subject as subject, year_2025_actual as prev,
+                   year_budget as curr, change_rate as change, detail_item as detail,
+                   category, priority as level, reduction_plan as plan
+            FROM financial_reduction
+            WHERE cost_subject LIKE ? OR section LIKE ? OR category LIKE ? OR detail_item LIKE ?
+            ORDER BY id LIMIT ? OFFSET ?
+        """, (like, like, like, like, page_size, offset)).fetchall()]
+    else:
+        rows = [dict(r) for r in cur.execute("""
+            SELECT id, version, section, cost_subject as subject, year_2025_actual as prev,
+                   year_budget as curr, change_rate as change, detail_item as detail,
+                   category, priority as level, reduction_plan as plan
+            FROM financial_reduction ORDER BY id LIMIT ? OFFSET ?
+        """, (page_size, offset)).fetchall()]
     db.close()
-    return rows
+    return {"data": rows, "total": total, "page": page, "page_size": page_size}
 
 
 @router.post("/reduction")

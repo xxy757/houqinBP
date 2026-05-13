@@ -1,5 +1,6 @@
 """人力资源 API"""
 from datetime import date
+import json
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional
@@ -8,6 +9,8 @@ from auth import require_permission
 from logger import log_operation
 
 router = APIRouter()
+
+PER_PERSON_COST = 10.2
 
 
 class EmployeeCreate(BaseModel):
@@ -29,19 +32,36 @@ class EmployeeCreate(BaseModel):
 def hr_employees(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=500),
+    search: str = Query(""),
     current_user: dict = Depends(require_permission("employees:read")),
 ):
     db = get_db()
     cur = db.cursor()
-    total = cur.execute("SELECT COUNT(*) FROM employees").fetchone()[0]
+    if search:
+        like = f"%{search}%"
+        total = cur.execute(
+            "SELECT COUNT(*) FROM employees WHERE name LIKE ? OR post LIKE ? OR department_name LIKE ?",
+            (like, like, like)
+        ).fetchone()[0]
+    else:
+        total = cur.execute("SELECT COUNT(*) FROM employees").fetchone()[0]
     offset = (page - 1) * page_size
     today = date.today()
-    rows = [dict(r) for r in cur.execute(f"""
-        SELECT id, employee_id, name, post, department_name as dept, education as edu,
-               age, entry_date, professional_match as match, gender, status, version
-        FROM employees
-        ORDER BY id LIMIT ? OFFSET ?
-    """, (page_size, offset)).fetchall()]
+    if search:
+        rows = [dict(r) for r in cur.execute(f"""
+            SELECT id, employee_id, name, post, department_name as dept, education as edu,
+                   age, entry_date, professional_match as match, gender, status, version
+            FROM employees
+            WHERE name LIKE ? OR post LIKE ? OR department_name LIKE ?
+            ORDER BY id LIMIT ? OFFSET ?
+        """, (like, like, like, page_size, offset)).fetchall()]
+    else:
+        rows = [dict(r) for r in cur.execute(f"""
+            SELECT id, employee_id, name, post, department_name as dept, education as edu,
+                   age, entry_date, professional_match as match, gender, status, version
+            FROM employees
+            ORDER BY id LIMIT ? OFFSET ?
+        """, (page_size, offset)).fetchall()]
     for r in rows:
         if r.get("entry_date"):
             try:
@@ -86,8 +106,39 @@ def create_employee(data: EmployeeCreate, current_user: dict = Depends(require_p
         """, (new_id, data.employee_id, data.name, data.post, data.department_name,
               data.education, data.age, data.entry_date, data.professional_match,
               data.gender, data.status, data.phone))
+
+        hr_change_desc = f"新增员工: {data.name}"
+        hr_posts = data.post or ""
+        fin_description = f"新增{data.name}({hr_posts})，按人均{PER_PERSON_COST}万/年计算"
+        responsible = current_user.get("display_name", "") or current_user.get("username", "")
+
+        cur.execute("""
+            INSERT INTO linkage_mappings
+            (proj_id, it_ids, hr_change_desc, hr_headcount, hr_posts,
+             hr_month_start, hr_month_end, fin_budget_impact, fin_subjects,
+             fin_description, responsible_person)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            None,
+            "[]",
+            hr_change_desc,
+            1,
+            hr_posts,
+            None,
+            None,
+            PER_PERSON_COST,
+            json.dumps(["工资预算"], ensure_ascii=False),
+            fin_description,
+            responsible,
+        ))
+
+        cur.execute("""
+            UPDATE financial_budget SET budget_num = CAST(COALESCE(budget_num, '0') AS REAL) + ?
+            WHERE category = '工资预算'
+        """, (PER_PERSON_COST * 10000,))
+
     db.close()
-    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "CREATE", "employees", str(new_id), f"新增员工: {data.name}")
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "CREATE", "employees", str(new_id), f"新增员工: {data.name}，自动联动财务+{PER_PERSON_COST}万")
     return {"id": new_id, "version": 1, "message": "创建成功"}
 
 
@@ -131,12 +182,46 @@ def delete_employee(employee_id: int, current_user: dict = Depends(require_permi
     db = get_db()
     with transaction(db):
         cur = db.cursor()
-        cur.execute("DELETE FROM employee_monthly_status WHERE employee_name = (SELECT name FROM employees WHERE id=?)", (employee_id,))
-        cur.execute("DELETE FROM employees WHERE id=?", (employee_id,))
-        if cur.rowcount == 0:
+        emp = cur.execute("SELECT name, post FROM employees WHERE id=?", (employee_id,)).fetchone()
+        if not emp:
             raise HTTPException(status_code=404, detail="员工不存在")
+        emp_name = emp["name"]
+        emp_post = emp["post"] or ""
+
+        cur.execute("DELETE FROM employee_monthly_status WHERE employee_name = ?", (emp_name,))
+        cur.execute("DELETE FROM employees WHERE id=?", (employee_id,))
+
+        hr_change_desc = f"删除员工: {emp_name}"
+        fin_description = f"删除{emp_name}({emp_post})，减少{PER_PERSON_COST}万/年"
+        responsible = current_user.get("display_name", "") or current_user.get("username", "")
+
+        cur.execute("""
+            INSERT INTO linkage_mappings
+            (proj_id, it_ids, hr_change_desc, hr_headcount, hr_posts,
+             hr_month_start, hr_month_end, fin_budget_impact, fin_subjects,
+             fin_description, responsible_person)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            None,
+            "[]",
+            hr_change_desc,
+            -1,
+            emp_post,
+            None,
+            None,
+            -PER_PERSON_COST,
+            json.dumps(["工资预算"], ensure_ascii=False),
+            fin_description,
+            responsible,
+        ))
+
+        cur.execute("""
+            UPDATE financial_budget SET budget_num = CAST(COALESCE(budget_num, '0') AS REAL) - ?
+            WHERE category = '工资预算'
+        """, (PER_PERSON_COST * 10000,))
+
     db.close()
-    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "DELETE", "employees", str(employee_id), "删除员工")
+    log_operation(current_user.get("username", ""), current_user.get("display_name", ""), "DELETE", "employees", str(employee_id), f"删除员工: {emp_name}，自动联动财务-{PER_PERSON_COST}万")
     return {"message": "删除成功"}
 
 

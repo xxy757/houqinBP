@@ -1,5 +1,5 @@
 """信息化方案 CRUD"""
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db, transaction
@@ -27,14 +27,37 @@ class ITProjectCreate(BaseModel):
 
 
 @router.get("")
-def list_it_projects(current_user: dict = Depends(require_permission("projects:read"))):
+def list_it_projects(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    search: str = Query(""),
+    current_user: dict = Depends(require_permission("projects:read")),
+):
     db = get_db()
     cur = db.cursor()
-    rows = [dict(r) for r in cur.execute("""
-        SELECT id, category as main, name as sub, goal, context, deliverable,
-               owner as person, start_date, end_date, duration as period, difficulty as issue, solve, phase_count, version
-        FROM it_projects ORDER BY id
-    """).fetchall()]
+    if search:
+        like = f"%{search}%"
+        total = cur.execute(
+            "SELECT COUNT(*) FROM it_projects WHERE name LIKE ? OR category LIKE ? OR goal LIKE ? OR owner LIKE ?",
+            (like, like, like, like)
+        ).fetchone()[0]
+    else:
+        total = cur.execute("SELECT COUNT(*) FROM it_projects").fetchone()[0]
+    offset = (page - 1) * page_size
+    if search:
+        rows = [dict(r) for r in cur.execute("""
+            SELECT id, category as main, name as sub, goal, context, deliverable,
+                   owner as person, start_date, end_date, duration as period, difficulty as issue, solve, phase_count, version
+            FROM it_projects
+            WHERE name LIKE ? OR category LIKE ? OR goal LIKE ? OR owner LIKE ?
+            ORDER BY id LIMIT ? OFFSET ?
+        """, (like, like, like, like, page_size, offset)).fetchall()]
+    else:
+        rows = [dict(r) for r in cur.execute("""
+            SELECT id, category as main, name as sub, goal, context, deliverable,
+                   owner as person, start_date, end_date, duration as period, difficulty as issue, solve, phase_count, version
+            FROM it_projects ORDER BY id LIMIT ? OFFSET ?
+        """, (page_size, offset)).fetchall()]
     for p in rows:
         p["phaseList"] = [dict(r) for r in cur.execute("""
             SELECT phase_order, phase_name as name, phase_content
@@ -42,7 +65,7 @@ def list_it_projects(current_user: dict = Depends(require_permission("projects:r
             WHERE project_id = ? ORDER BY phase_order
         """, (p["id"],)).fetchall()]
     db.close()
-    return rows
+    return {"data": rows, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/{project_id}")

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import Section from '../components/Section'
-import { api, LinkMapping, LinkageSummary, ProfessionalProject, ITProject, ImpactSimulation } from '../services/api'
+import Pagination from '../components/Pagination'
+import SearchBar from '../components/SearchBar'
+import { api, type LinkMapping, type LinkageSummary, type ProfessionalProject, type ITProject, type ImpactSimulation } from '../services/api'
 
 const PER_PERSON_COST = 10.2
 
@@ -30,24 +32,46 @@ export default function LinkConfigPage() {
   const [simHrChange, setSimHrChange] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [total, setTotal] = useState(0)
+
   const setF = (k: string, v: unknown) => setForm({ ...form, [k]: v })
 
   const load = () => {
     setLoading(true)
     Promise.all([
-      api.getLinkageMappings(),
+      api.getLinkageMappings(page, pageSize, search),
       api.getLinkageSummary(),
-      api.getProfessionalProjects(),
-      api.getITProjects(),
+      api.getProfessionalProjects(1, 500),
+      api.getITProjects(1, 500),
     ]).then(([m, s, p, i]) => {
-      setMappings(m)
+      setMappings(m.data)
+      setTotal(m.total)
       setSummary(s)
-      setProjList(p)
-      setItList(i)
+      setProjList(p.data)
+      setItList(i.data)
     }).finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [page, pageSize])
+
+  const handleSearch = () => {
+    setPage(1)
+    load()
+  }
+
+  const handleClear = () => {
+    setSearch('')
+    setPage(1)
+    setTimeout(() => load(), 0)
+  }
+
+  const handlePageChange = (p: number, ps: number) => {
+    setPage(p)
+    setPageSize(ps)
+  }
 
   const openCreate = () => {
     setForm({ ...emptyForm })
@@ -411,6 +435,10 @@ export default function LinkConfigPage() {
           </Section>
         )}
 
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8, padding: '0 16px' }}>
+          <SearchBar value={search} placeholder="搜索关联项目 / 负责人 / 岗位..." onChange={setSearch} onSearch={handleSearch} onClear={handleClear} />
+        </div>
+
         <div style={{ padding: 16 }}>
           <table>
             <thead>
@@ -468,6 +496,7 @@ export default function LinkConfigPage() {
               )}
             </tbody>
           </table>
+          <Pagination page={page} pageSize={pageSize} total={total} onChange={handlePageChange} />
         </div>
       </Section>
     </div>

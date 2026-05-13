@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { rbacApi, type UserItem, type RoleItem, type PermissionItem } from '../services/api'
+import Pagination from '../components/Pagination'
+import SearchBar from '../components/SearchBar'
 import './UserManagementPage.css'
 
 export default function UserManagementPage() {
@@ -9,6 +11,16 @@ export default function UserManagementPage() {
   const [permissions, setPermissions] = useState<PermissionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const [userSearch, setUserSearch] = useState('')
+  const [userPage, setUserPage] = useState(1)
+  const [userPageSize, setUserPageSize] = useState(20)
+  const [userTotal, setUserTotal] = useState(0)
+
+  const [roleSearch, setRoleSearch] = useState('')
+  const [rolePage, setRolePage] = useState(1)
+  const [rolePageSize, setRolePageSize] = useState(20)
+  const [roleTotal, setRoleTotal] = useState(0)
 
   const [showUserForm, setShowUserForm] = useState(false)
   const [editingUser, setEditingUser] = useState<UserItem | null>(null)
@@ -23,21 +35,31 @@ export default function UserManagementPage() {
     setError('')
     try {
       const [usersData, rolesData, permsData] = await Promise.all([
-        rbacApi.getUsers(),
-        rbacApi.getRoles(),
+        rbacApi.getUsers(userPage, userPageSize, userSearch),
+        rbacApi.getRoles(rolePage, rolePageSize, roleSearch),
         rbacApi.getPermissions(),
       ])
-      setUsers(usersData)
-      setRoles(rolesData)
+      setUsers(usersData.data)
+      setUserTotal(usersData.total)
+      setRoles(rolesData.data)
+      setRoleTotal(rolesData.total)
       setPermissions(permsData)
     } catch {
       setError('加载数据失败')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userPage, userPageSize, userSearch, rolePage, rolePageSize, roleSearch])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const handleUserSearch = () => { setUserPage(1); loadData() }
+  const handleUserClear = () => { setUserSearch(''); setUserPage(1); setTimeout(() => loadData(), 0) }
+  const handleUserPageChange = (p: number, ps: number) => { setUserPage(p); setUserPageSize(ps) }
+
+  const handleRoleSearch = () => { setRolePage(1); loadData() }
+  const handleRoleClear = () => { setRoleSearch(''); setRolePage(1); setTimeout(() => loadData(), 0) }
+  const handleRolePageChange = (p: number, ps: number) => { setRolePage(p); setRolePageSize(ps) }
 
   const resetUserForm = () => {
     setUserForm({ username: '', password: '', display_name: '', role_ids: [] })
@@ -161,7 +183,9 @@ export default function UserManagementPage() {
 
       {tab === 'users' && (
         <div className="um-content">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, gap: 8 }}>
+            <SearchBar value={userSearch} placeholder="搜索用户名 / 显示名称..." onChange={setUserSearch} onSearch={handleUserSearch} onClear={handleUserClear} />
+            <div style={{ flex: 1 }} />
             <button className="btn btn-p" onClick={() => { resetUserForm(); setShowUserForm(true) }}>+ 新增用户</button>
           </div>
 
@@ -244,12 +268,15 @@ export default function UserManagementPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={userPage} pageSize={userPageSize} total={userTotal} onChange={handleUserPageChange} />
         </div>
       )}
 
       {tab === 'roles' && (
         <div className="um-content">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, gap: 8 }}>
+            <SearchBar value={roleSearch} placeholder="搜索角色代码 / 名称..." onChange={setRoleSearch} onSearch={handleRoleSearch} onClear={handleRoleClear} />
+            <div style={{ flex: 1 }} />
             <button className="btn btn-p" onClick={() => { resetRoleForm(); setShowRoleForm(true) }}>+ 新增角色</button>
           </div>
 
@@ -324,6 +351,7 @@ export default function UserManagementPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={rolePage} pageSize={rolePageSize} total={roleTotal} onChange={handleRolePageChange} />
         </div>
       )}
     </div>

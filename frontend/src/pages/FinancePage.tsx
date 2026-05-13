@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import Section from '../components/Section'
 import Tabs from '../components/Tabs'
+import Pagination from '../components/Pagination'
+import SearchBar from '../components/SearchBar'
 import { api, type FinanceBudgetItem, type TimelinePhase, type ReductionItem } from '../services/api'
 
 const finTabs = [
@@ -35,19 +37,39 @@ export default function FinancePage() {
   const [editingReduction, setEditingReduction] = useState<Record<string, unknown> | null>(null)
   const [reductionForm, setReductionForm] = useState<Record<string, unknown>>({ ...emptyReduction })
 
+  const [budgetSearch, setBudgetSearch] = useState('')
+  const [budgetPage, setBudgetPage] = useState(1)
+  const [budgetPageSize, setBudgetPageSize] = useState(50)
+  const [budgetTotal, setBudgetTotal] = useState(0)
+
+  const [reductionSearch, setReductionSearch] = useState('')
+  const [reductionPage, setReductionPage] = useState(1)
+  const [reductionPageSize, setReductionPageSize] = useState(50)
+  const [reductionTotal, setReductionTotal] = useState(0)
+
   const load = () => {
     Promise.all([
-      api.getFinanceBudget(),
+      api.getFinanceBudget(budgetPage, budgetPageSize, budgetSearch),
       api.getFinanceTimeline(),
-      api.getFinanceReduction(),
+      api.getFinanceReduction(reductionPage, reductionPageSize, reductionSearch),
     ]).then(([b, t, r]) => {
-      setBudget(b)
+      setBudget(b.data)
+      setBudgetTotal(b.total)
       setTimeline(t)
-      setReduction(r)
+      setReduction(r.data)
+      setReductionTotal(r.total)
     }).finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [budgetPage, budgetPageSize, reductionPage, reductionPageSize])
+
+  const handleBudgetSearch = () => { setBudgetPage(1); load() }
+  const handleBudgetClear = () => { setBudgetSearch(''); setBudgetPage(1); setTimeout(() => load(), 0) }
+  const handleBudgetPageChange = (p: number, ps: number) => { setBudgetPage(p); setBudgetPageSize(ps) }
+
+  const handleReductionSearch = () => { setReductionPage(1); load() }
+  const handleReductionClear = () => { setReductionSearch(''); setReductionPage(1); setTimeout(() => load(), 0) }
+  const handleReductionPageChange = (p: number, ps: number) => { setReductionPage(p); setReductionPageSize(ps) }
 
   const openCreateBudget = () => {
     setBudgetForm({ ...emptyBudget })
@@ -161,7 +183,9 @@ export default function FinancePage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
+            <SearchBar value={budgetSearch} placeholder="搜索费用类别 / 部门..." onChange={setBudgetSearch} onSearch={handleBudgetSearch} onClear={handleBudgetClear} />
+            <div style={{ flex: 1 }} />
             <button className="btn" onClick={openCreateBudget}>➕ 新增预算项</button>
           </div>
 
@@ -193,7 +217,7 @@ export default function FinancePage() {
             </Section>
           )}
 
-          <Section title="🏗️ 费用结构分析">
+          <Section title="🏗️ 费用结构分析" badge={`${budgetTotal}项`}>
             <table>
               <thead>
                 <tr>
@@ -220,6 +244,7 @@ export default function FinancePage() {
                 })}
               </tbody>
             </table>
+            <Pagination page={budgetPage} pageSize={budgetPageSize} total={budgetTotal} onChange={handleBudgetPageChange} />
           </Section>
         </div>
       )}
@@ -248,7 +273,9 @@ export default function FinancePage() {
 
       {activeTab === 'reduction' && (
         <div className="page-enter">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
+            <SearchBar value={reductionSearch} placeholder="搜索费用科目 / 板块 / 类别..." onChange={setReductionSearch} onSearch={handleReductionSearch} onClear={handleReductionClear} />
+            <div style={{ flex: 1 }} />
             <button className="btn" onClick={openCreateReduction}>➕ 新增降费项</button>
           </div>
 
@@ -300,7 +327,7 @@ export default function FinancePage() {
             </Section>
           )}
 
-          <Section title="📉 降费方案明细" badge={`${reduction.length}项`}>
+          <Section title="📉 降费方案明细" badge={`${reductionTotal}项`}>
             <table>
               <thead>
                 <tr>
@@ -332,6 +359,7 @@ export default function FinancePage() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={reductionPage} pageSize={reductionPageSize} total={reductionTotal} onChange={handleReductionPageChange} />
           </Section>
         </div>
       )}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 import json
@@ -80,19 +80,43 @@ def _enrich_mapping(cur, row):
 
 
 @router.get("/mappings")
-def get_mappings(current_user: dict = Depends(require_permission("linkage:read"))):
+def get_mappings(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    search: str = Query(""),
+    current_user: dict = Depends(require_permission("linkage:read")),
+):
     db = get_db()
     cur = db.cursor()
-    cur.execute("""
-        SELECT lm.*, pp.name AS proj_name
-        FROM linkage_mappings lm
-        LEFT JOIN professional_projects pp ON pp.id = lm.proj_id
-        ORDER BY lm.id
-    """)
+    if search:
+        like = f"%{search}%"
+        total = cur.execute("""
+            SELECT COUNT(*) FROM linkage_mappings lm
+            LEFT JOIN professional_projects pp ON pp.id = lm.proj_id
+            WHERE pp.name LIKE ? OR lm.hr_change_desc LIKE ? OR lm.hr_posts LIKE ? OR lm.responsible_person LIKE ?
+        """, (like, like, like, like)).fetchone()[0]
+    else:
+        total = cur.execute("SELECT COUNT(*) FROM linkage_mappings").fetchone()[0]
+    offset = (page - 1) * page_size
+    if search:
+        cur.execute("""
+            SELECT lm.*, pp.name AS proj_name
+            FROM linkage_mappings lm
+            LEFT JOIN professional_projects pp ON pp.id = lm.proj_id
+            WHERE pp.name LIKE ? OR lm.hr_change_desc LIKE ? OR lm.hr_posts LIKE ? OR lm.responsible_person LIKE ?
+            ORDER BY lm.id LIMIT ? OFFSET ?
+        """, (like, like, like, like, page_size, offset))
+    else:
+        cur.execute("""
+            SELECT lm.*, pp.name AS proj_name
+            FROM linkage_mappings lm
+            LEFT JOIN professional_projects pp ON pp.id = lm.proj_id
+            ORDER BY lm.id LIMIT ? OFFSET ?
+        """, (page_size, offset))
     rows = cur.fetchall()
     result = [_enrich_mapping(cur, r) for r in rows]
     db.close()
-    return result
+    return {"data": result, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/mappings/{mapping_id}")
